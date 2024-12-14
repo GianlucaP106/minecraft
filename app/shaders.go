@@ -2,6 +2,8 @@ package app
 
 import (
 	"fmt"
+	"io/fs"
+	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -18,27 +20,48 @@ func newShaderManager(root string) *ShaderManager {
 	s := &ShaderManager{}
 	s.rootPath = root
 	s.shaders = make(map[string]uint32)
+	s.init()
 	return s
 }
 
-func (s *ShaderManager) Add(name string) uint32 {
-	vshader := filepath.Join(s.rootPath, name, "vert.glsl")
-	fshader := filepath.Join(s.rootPath, name, "frag.glsl")
-	vb, err := os.ReadFile(vshader)
-	if err != nil {
-		panic(err)
-	}
+func (s *ShaderManager) init() {
+	dirEntries := func() []fs.FileInfo {
+		dir, err := os.Open(s.rootPath)
+		if err != nil {
+			log.Panicln(err)
+		}
+		defer dir.Close()
 
-	fb, err := os.ReadFile(fshader)
-	if err != nil {
-		panic(err)
-	}
+		dirEntries, err := dir.Readdir(-1)
+		if err != nil {
+			log.Panicln(err)
+		}
+		return dirEntries
+	}()
 
-	vsrc := string(vb) + "\x00"
-	fsrc := string(fb) + "\x00"
-	program := s.createProgram(vsrc, fsrc)
-	s.shaders[name] = program
-	return program
+	for _, d := range dirEntries {
+		if !d.IsDir() {
+			continue
+		}
+
+		name := d.Name()
+		vshader := filepath.Join(s.rootPath, name, "vert.glsl")
+		fshader := filepath.Join(s.rootPath, name, "frag.glsl")
+		vb, err := os.ReadFile(vshader)
+		if err != nil {
+			panic(err)
+		}
+
+		fb, err := os.ReadFile(fshader)
+		if err != nil {
+			panic(err)
+		}
+
+		vsrc := string(vb) + "\x00"
+		fsrc := string(fb) + "\x00"
+		program := s.createProgram(vsrc, fsrc)
+		s.shaders[name] = program
+	}
 }
 
 func (s *ShaderManager) Program(name string) uint32 {

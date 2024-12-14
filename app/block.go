@@ -46,14 +46,14 @@ func (b *Block) Translate() mgl32.Mat4 {
 	return mgl32.Translate3D(b.pos.X(), b.pos.Y(), b.pos.Z())
 }
 
-func (b *Block) BoundingBox() BoundingBox {
+func (b *Block) BoundingBox() Box {
 	min := b.WorldPos()
 	max := min.Add(mgl32.Vec3{
 		blockSize,
 		blockSize,
 		blockSize,
 	})
-	return newBoundingBox(min, max)
+	return newBox(min, max)
 }
 
 // geometry for a cube centered at the origin with size 2

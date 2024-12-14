@@ -1,7 +1,6 @@
 package app
 
 import (
-	"fmt"
 	"log"
 
 	"github.com/go-gl/gl/v4.1-core/gl"
@@ -14,13 +13,17 @@ type App struct {
 	// main window
 	window *glfw.Window
 
-	// global shader program manager
+	// shader program manager
 	shaders *ShaderManager
 
 	// world player camera
 	camera *Camera
 
-	chunkRenderer *ChunkRenderer
+	// contains all the chunks and blocks
+	world *World
+
+	// crosshair shows a cross on the screen
+	crosshair *Crosshair
 }
 
 func Start() {
@@ -28,21 +31,22 @@ func Start() {
 
 	a := &App{}
 	a.Init()
-	defer a.Terminate()
+	defer glfw.Terminate()
 
 	// init shader program manager and add shaders
 	a.shaders = newShaderManager("./shaders")
-	a.shaders.Add("main")
 
-	// init world camera
-	a.camera = newCamera(mgl32.Vec3{0, 0, 2}, a.window)
+	// init world camera and crosshair
+	a.camera = newCamera(mgl32.Vec3{0, 0, 0}, a.window)
+	a.crosshair = newCrosshair(a.camera, a.shaders.Program("crosshair"))
+	a.crosshair.Init()
 
-	// init chunk renderer
-	a.chunkRenderer = newChunkRenderer(a.shaders, a.camera)
+	// init world
+	a.world = newWorld(a.camera, a.shaders.Program("main"))
+	chunk := a.world.SpawnChunk(mgl32.Vec3{50, 0, -50})
+	chunk2 := a.world.SpawnChunk(mgl32.Vec3{-50, 0, -50})
 
-	chunk := a.chunkRenderer.CreateChunk(mgl32.Vec3{0, 0, 0})
-
-	// set keymap handlers for looking and moving
+	// set keymap handlers for looking
 	a.camera.SetLookHandler()
 
 	// TODO:
@@ -54,10 +58,8 @@ func Start() {
 
 		if action == glfw.Press && !isPressed {
 			isPressed = true
-			if chunk.target != nil {
-				a.chunkRenderer.BreakBlock(chunk.target)
-				fmt.Println(chunk.target.WorldPos())
-			}
+			chunk.BreakBlock()
+			chunk2.BreakBlock()
 		} else if action == glfw.Release {
 			isPressed = false
 		}
@@ -72,10 +74,17 @@ func Start() {
 
 		// ... //
 
-		a.chunkRenderer.SetTargetBlock(chunk)
-		a.chunkRenderer.Draw(chunk, mgl32.Vec3{0, 0, 0})
+		// TODO: generalize chunks
+		chunk.LookAt()
+		chunk2.LookAt()
+
+		chunk.Draw()
+		chunk2.Draw()
 
 		// ... //
+
+		// draw cross hair and potential overlays
+		a.crosshair.Draw()
 
 		// window maintenance
 		a.window.SwapBuffers()
@@ -90,8 +99,4 @@ func (a *App) Init() {
 	// configure global settings
 	gl.Enable(gl.DEPTH_TEST)
 	gl.ClearColor(1.0, 1.0, 1.0, 1.0)
-}
-
-func (a *App) Terminate() {
-	glfw.Terminate()
 }
