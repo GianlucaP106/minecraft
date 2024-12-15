@@ -1,9 +1,6 @@
 package app
 
 import (
-	"fmt"
-	"sort"
-
 	"github.com/go-gl/gl/v4.1-core/gl"
 	"github.com/go-gl/mathgl/mgl32"
 )
@@ -11,13 +8,6 @@ import (
 type Chunk struct {
 	// blocks in the chunk, position determined by index in array
 	blocks [chunkSize][chunkSize][chunkSize]*Block
-
-	// target block being looked at
-	// will be set by ChunkRenderer
-	target *Block
-
-	// world camera
-	camera *Camera
 
 	// total count of vertices in the chunk
 	vertCount int
@@ -34,11 +24,10 @@ type Chunk struct {
 
 const chunkSize = 16
 
-func newChunk(shader uint32, camera *Camera, initialPos mgl32.Vec3) *Chunk {
+func newChunk(shader uint32, initialPos mgl32.Vec3) *Chunk {
 	c := &Chunk{}
 	c.shader = shader
 	c.pos = initialPos
-	c.camera = camera
 	return c
 }
 
@@ -92,10 +81,10 @@ func (c *Chunk) Buffer() {
 				// storing these vertices in the ChunkRenderer instead of computing them at each buffer call
 
 				// translate vertices to respective pos in chunk
-				// 2x because the size of cube geometry is size 2
 				translate := block.Translate()
 				for _, vert := range block.Vertices() {
 					c.vertCount++
+
 					pos := translate.Mul4x1(vert.Vec4(1))
 
 					// add vertex and color
@@ -115,7 +104,7 @@ func (c *Chunk) Buffer() {
 	gl.BufferData(gl.ARRAY_BUFFER, len(chunk)*4, gl.Ptr(chunk), gl.DYNAMIC_DRAW)
 }
 
-func (c *Chunk) Draw() {
+func (c *Chunk) Draw(target *TargetBlock, camera *Camera) {
 	gl.UseProgram(c.shader)
 	gl.BindVertexArray(c.vao)
 
@@ -125,7 +114,7 @@ func (c *Chunk) Draw() {
 	model := translate.Mul4(scale)
 
 	// view is the camera + perspective matrix
-	view := c.camera.View()
+	view := camera.View()
 
 	// attach model to uniform
 	modelUniform := gl.GetUniformLocation(c.shader, gl.Str("model\x00"))
@@ -138,9 +127,10 @@ func (c *Chunk) Draw() {
 	// attach lookedAtBlock which determines which block is being locked at in the chunk
 	isLooking := 0
 	lookedAtBlockUniform := gl.GetUniformLocation(c.shader, gl.Str("lookedAtBlock\x00"))
-	if c.target != nil {
+	if target != nil {
 		isLooking = 1
-		pos := c.target.WorldPos()
+		// pos := target.block.WorldPos()
+		pos := target.hit
 		gl.Uniform3f(lookedAtBlockUniform, pos.X(), pos.Y(), pos.Z())
 	}
 
@@ -175,37 +165,4 @@ func (c *Chunk) ActiveBlocks() []*Block {
 		}
 	}
 	return out
-}
-
-func (c *Chunk) BreakBlock() {
-	if c.target != nil {
-		c.target.active = false
-		c.Buffer()
-		fmt.Println(c.target.pos)
-	}
-}
-
-func (c *Chunk) LookAt() {
-	b, _ := c.camera.Ray().IsLookingAt(c.BoundingBox())
-	if !b {
-		c.target = nil
-		return
-	}
-
-	blocks := c.ActiveBlocks()
-	sort.Slice(blocks, func(i, j int) bool {
-		bb1 := blocks[i].BoundingBox()
-		bb2 := blocks[j].BoundingBox()
-		d1 := bb1.Distance(c.camera.pos)
-		d2 := bb2.Distance(c.camera.pos)
-		return d1 < d2
-	})
-	for _, block := range blocks {
-		lookingAt, _ := c.camera.Ray().IsLookingAt(block.BoundingBox())
-		if lookingAt {
-			c.target = block
-			return
-		}
-	}
-	c.target = nil
 }

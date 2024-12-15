@@ -65,7 +65,11 @@ func (s *ShaderManager) init() {
 }
 
 func (s *ShaderManager) Program(name string) uint32 {
-	return s.shaders[name]
+	e, w := s.shaders[name]
+	if !w {
+		log.Panic("invalid shader: ", name)
+	}
+	return e
 }
 
 func (s *ShaderManager) createProgram(vertexShaderSource, fragmentShaderSource string) uint32 {

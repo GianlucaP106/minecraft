@@ -31,7 +31,7 @@ func newCamera(initialPos mgl32.Vec3, window *glfw.Window) *Camera {
 	c.pos = initialPos
 	c.view = mgl32.Vec3{0, 0, -1}
 	c.up = mgl32.Vec3{0, 1, 0}
-	c.projection = mgl32.Perspective(mgl32.DegToRad(45.0), float32(windowWidth)/windowHeight, 0.1, 100.0)
+	c.projection = mgl32.Perspective(mgl32.DegToRad(45.0), float32(windowWidth)/windowHeight, 0.1, 1000.0)
 	c.window = window
 	return c
 }
@@ -42,10 +42,10 @@ func (c *Camera) SetLookHandler() {
 	})
 }
 
-func (c *Camera) HandleMove() {
+func (c *Camera) HandleMove(delta float64) {
+	// handle actions
 	var rightMove float32
 	var forwardMove float32
-
 	if c.window.GetKey(glfw.KeyA) == glfw.Press {
 		rightMove--
 	}
@@ -58,7 +58,7 @@ func (c *Camera) HandleMove() {
 	if c.window.GetKey(glfw.KeyS) == glfw.Press {
 		forwardMove--
 	}
-	c.Move(forwardMove, rightMove)
+	c.Move(forwardMove, rightMove, delta)
 }
 
 func (c *Camera) View() mgl32.Mat4 {
@@ -70,7 +70,7 @@ func (c *Camera) cross() mgl32.Vec3 {
 	return c.view.Cross(c.up)
 }
 
-func (c *Camera) Move(forward, right float32) {
+func (c *Camera) Move(forward, right float32, delta float64) {
 	// combine movement into vector and normalize
 	movement := c.view.Mul(forward).Add(c.cross().Mul(right))
 	if movement.Len() > 0 {
@@ -78,9 +78,17 @@ func (c *Camera) Move(forward, right float32) {
 	}
 
 	// apply speed to movement
-	var speed float32 = 0.1
-	movement = movement.Mul(speed)
-	c.pos = c.pos.Add(movement)
+	movement = movement.Mul(float32(delta * 10))
+
+	// set the y component for movement
+	// TODO: can use the delta for gravity
+	// movement[1] = -0.1
+
+	// apply movement constraints based on surroundings
+	newPos := c.pos.Add(movement)
+
+	// finally set the new position
+	c.pos = newPos
 }
 
 func (c *Camera) Look(screenX, screenY float32) {
@@ -89,11 +97,11 @@ func (c *Camera) Look(screenX, screenY float32) {
 	c.prevScreenX = screenX
 	c.prevScreenY = screenY
 
-	var speedX float32 = 0.1
-	var speedY float32 = 0.05
+	var sensitivityX float32 = 0.1
+	var sensitivityY float32 = 0.05
 
 	// get the rotation for X and Y then combine them
-	rotationX := mgl32.HomogRotate3D(speedX*mgl32.DegToRad(deltaX), c.up)
+	rotationX := mgl32.HomogRotate3D(sensitivityX*mgl32.DegToRad(deltaX), c.up)
 	dir := mgl32.Vec4{
 		c.view.X(),
 		c.view.Y(),
@@ -101,14 +109,19 @@ func (c *Camera) Look(screenX, screenY float32) {
 		0,
 	}
 	yaxis := c.up.Cross(c.view)
-	rotationY := mgl32.HomogRotate3D(speedY*mgl32.DegToRad(deltaY), yaxis)
+	rotationY := mgl32.HomogRotate3D(sensitivityY*mgl32.DegToRad(deltaY), yaxis)
 	rotation := rotationX.Mul4(rotationY)
 
-	// apply the transformation and normalize to ensure consitency
-	c.view = rotation.Mul4x1(dir).Vec3().Normalize()
+	// compute transformation and normalize
+	final := rotation.Mul4x1(dir).Vec3().Normalize()
+
+	// TODO: gimabal lock
+
+	c.view = final
 }
 
 func (c *Camera) Ray() Ray {
+	// TODO: figure out
 	// adjust ray for crosshair
 	o := c.pos.Add(c.up) //.Add(c.cross())
 

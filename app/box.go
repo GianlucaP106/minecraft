@@ -9,7 +9,8 @@ type Box struct {
 type BoxFace uint
 
 const (
-	left   BoxFace = iota // -x
+	none   BoxFace = iota // not calculated
+	left                  // -x
 	right                 // +x
 	bottom                // -y
 	top                   // +y

@@ -1,8 +1,6 @@
 package main
 
-import (
-	"minecraft/app"
-)
+import "minecraft/app"
 
 func main() {
 	app.Start()

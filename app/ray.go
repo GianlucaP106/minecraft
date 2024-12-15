@@ -7,7 +7,7 @@ type Ray struct {
 	direction mgl32.Vec3
 }
 
-func (r Ray) IsLookingAt(b Box) (bool, string) {
+func (r Ray) IsLookingAt(b Box) (bool, BoxFace, mgl32.Vec3) {
 	bmin := b.min
 	bmax := b.max
 
@@ -32,7 +32,7 @@ func (r Ray) IsLookingAt(b Box) (bool, string) {
 	}
 
 	if tMin > tyMax || tyMin > tMax {
-		return false, ""
+		return false, none, mgl32.Vec3{}
 	}
 
 	if tyMin > tMin {
@@ -53,65 +53,29 @@ func (r Ray) IsLookingAt(b Box) (bool, string) {
 	}
 
 	if tMin > tzMax || tzMin > tMax {
-		return false, ""
+		return false, none, mgl32.Vec3{}
 	}
-
-	// distanceTo := b.Distance(c.eye)
-	// raySize := r.direction.Len()
 
 	// TODO: change ray
 	hitPos := r.origin.Add(r.direction.Mul(tmin))
-	// fmt.Println(hitPos)
 
-	if hitPos.X() == bmin.X() {
-		return true, "left"
+	var face BoxFace
+	switch {
+	case hitPos.X() == bmin.X():
+		face = left
+	case hitPos.X() == bmax.X():
+		face = right
+	case hitPos.Y() == bmin.Y():
+		face = bottom
+	case hitPos.Y() == bmax.Y():
+		face = top
+	case hitPos.Z() == bmin.Z():
+		face = back
+	case hitPos.Z() == bmax.Z():
+		face = front
+	default:
+		face = none
 	}
 
-	if hitPos.X() == bmax.X() {
-		return true, "right"
-	}
-
-	if hitPos.Y() == bmin.Y() {
-		return true, "bottom"
-	}
-
-	if hitPos.Y() == bmax.Y() {
-		return true, "top"
-	}
-
-	if hitPos.Z() == bmin.Z() {
-		return true, "back"
-	}
-
-	if hitPos.Z() == bmax.Z() {
-		return true, "front"
-	}
-
-	return true, "none"
-
-	// smallThresh := float32(0.000001)
-	// bigThresh := float32(0.199990)
-	// if mgl32.Abs(hitPos.X()-bmin.X()) < smallThresh {
-	// 	return true, "left"
-	// }
-	//
-	// if mgl32.Abs(hitPos.X()-bmin.X()) > bigThresh {
-	// 	return true, "right"
-	// }
-	//
-	// if mgl32.Abs(hitPos.Y()-bmin.Y()) < smallThresh {
-	// 	return true, "bottom"
-	// }
-	//
-	// if mgl32.Abs(hitPos.Y()-bmin.Y()) > bigThresh {
-	// 	return true, "top"
-	// }
-	//
-	// if mgl32.Abs(hitPos.Z()-bmin.Z()) < smallThresh {
-	// 	return true, "front"
-	// }
-	//
-	// if mgl32.Abs(hitPos.Z()-bmin.Z()) > bigThresh {
-	// 	return true, "back"
-	// }
+	return true, face, hitPos
 }

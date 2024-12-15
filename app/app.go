@@ -37,49 +37,46 @@ func Start() {
 	a.shaders = newShaderManager("./shaders")
 
 	// init world camera and crosshair
-	a.camera = newCamera(mgl32.Vec3{0, 0, 0}, a.window)
+	a.camera = newCamera(mgl32.Vec3{0, 35, 0}, a.window)
 	a.crosshair = newCrosshair(a.camera, a.shaders.Program("crosshair"))
 	a.crosshair.Init()
 
 	// init world
 	a.world = newWorld(a.camera, a.shaders.Program("main"))
-	chunk := a.world.SpawnChunk(mgl32.Vec3{50, 0, -50})
-	chunk2 := a.world.SpawnChunk(mgl32.Vec3{-50, 0, -50})
+	a.world.SpawnPlatform()
 
 	// set keymap handlers for looking
 	a.camera.SetLookHandler()
 
-	// TODO:
-	isPressed := false
-	a.window.SetMouseButtonCallback(func(w *glfw.Window, button glfw.MouseButton, action glfw.Action, mods glfw.ModifierKey) {
-		if button != glfw.MouseButtonLeft {
-			return
-		}
+	// mouse click handler for breaking and placing blocks
+	a.SetMouseClickHandler()
 
-		if action == glfw.Press && !isPressed {
-			isPressed = true
-			chunk.BreakBlock()
-			chunk2.BreakBlock()
-		} else if action == glfw.Release {
-			isPressed = false
-		}
-	})
+	clock := newClock()
+	clock.Start()
 
 	for !a.window.ShouldClose() && a.window.GetKey(glfw.KeyQ) != glfw.Press {
-		// clear framebuffers buffers
+		// clear buffers
 		gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
 
+		// loop time delta
+		delta := clock.Delta()
+
 		// handle cam move
-		a.camera.HandleMove()
+		a.camera.HandleMove(delta)
+
+		// look near by to select a target block
+		a.world.LookNear()
 
 		// ... //
 
-		// TODO: generalize chunks
-		chunk.LookAt()
-		chunk2.LookAt()
-
-		chunk.Draw()
-		chunk2.Draw()
+		for _, c := range a.world.NearChunks() {
+			target := a.world.target
+			if target != nil && target.block.chunk == c {
+				c.Draw(target, a.camera)
+			} else {
+				c.Draw(nil, a.camera)
+			}
+		}
 
 		// ... //
 
@@ -90,6 +87,29 @@ func Start() {
 		a.window.SwapBuffers()
 		glfw.PollEvents()
 	}
+}
+
+func (a *App) SetMouseClickHandler() {
+	var isPressedLeft bool
+	var isPressedRight bool
+	a.window.SetMouseButtonCallback(func(w *glfw.Window, button glfw.MouseButton, action glfw.Action, mods glfw.ModifierKey) {
+		switch button {
+		case glfw.MouseButtonLeft:
+			if action == glfw.Press && !isPressedLeft {
+				isPressedLeft = true
+				a.world.BreakBlock()
+			} else if action == glfw.Release {
+				isPressedLeft = false
+			}
+		case glfw.MouseButtonRight:
+			if action == glfw.Press && !isPressedRight {
+				isPressedRight = true
+				a.world.PlaceBlock()
+			} else if action == glfw.Release {
+				isPressedRight = false
+			}
+		}
+	})
 }
 
 func (a *App) Init() {
