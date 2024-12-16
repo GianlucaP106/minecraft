@@ -40,5 +40,5 @@ func (v *VecMap[T]) All() []*T {
 }
 
 func (v *VecMap[T]) serialize(p mgl32.Vec3) string {
-	return fmt.Sprintf("%f-%f-%f", p.X(), p.Y(), p.Z())
+	return fmt.Sprintf("%f_%f_%f", p.X(), p.Y(), p.Z())
 }

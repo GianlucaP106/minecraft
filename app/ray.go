@@ -7,7 +7,7 @@ type Ray struct {
 	direction mgl32.Vec3
 }
 
-func (r Ray) IsLookingAt(b Box) (bool, BoxFace, mgl32.Vec3) {
+func (r Ray) LookAt(b Box) (bool, BoxFace, mgl32.Vec3) {
 	bmin := b.min
 	bmax := b.max
 
@@ -56,7 +56,6 @@ func (r Ray) IsLookingAt(b Box) (bool, BoxFace, mgl32.Vec3) {
 		return false, none, mgl32.Vec3{}
 	}
 
-	// TODO: change ray
 	hitPos := r.origin.Add(r.direction.Mul(tmin))
 
 	var face BoxFace

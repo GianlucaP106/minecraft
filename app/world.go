@@ -2,18 +2,13 @@ package app
 
 import (
 	"log"
-	"sort"
+	"math"
 
 	"github.com/go-gl/mathgl/mgl32"
 )
 
+// World holds the terrain, map and manages entity lifecycles.
 type World struct {
-	// player camera
-	camera *Camera
-
-	// block being looked at
-	target *TargetBlock
-
 	// chunk map, provides lookup by location
 	chunks VecMap[Chunk]
 
@@ -21,14 +16,30 @@ type World struct {
 	chunkShader uint32
 }
 
-func newWorld(cam *Camera, chunkShader uint32) *World {
+func newWorld(chunkShader uint32) *World {
 	w := &World{}
-	w.camera = cam
 	w.chunkShader = chunkShader
 	w.chunks = newVecMap[Chunk]()
 	return w
 }
 
+func (w *World) SpawnPlatform() {
+	// for i := 0; i < 5; i++ {
+	// 	y := 0
+	// 	// if i%2 == 0 {
+	// 	// 	y *= -1
+	// 	// }
+	// 	x := i * chunkSize * blockSize
+	// 	p := mgl32.Vec3{float32(x), float32(y), 0}
+	// 	w.SpawnChunk(p)
+	// }
+	w.SpawnChunk(mgl32.Vec3{0, 0, 0})
+	w.SpawnChunk(mgl32.Vec3{-0, -16, 0})
+	w.SpawnChunk(mgl32.Vec3{-16, -16, 0})
+}
+
+// Spawns a new chunk at the given position.
+// The param should a be a "valid" chunk position.
 func (w *World) SpawnChunk(pos mgl32.Vec3) *Chunk {
 	// init chunk, attribs and pointers
 	chunk := newChunk(w.chunkShader, pos)
@@ -38,27 +49,15 @@ func (w *World) SpawnChunk(pos mgl32.Vec3) *Chunk {
 	return chunk
 }
 
-func (w *World) SpawnPlatform() {
-	for i := 0; i < 5; i++ {
-		x := i * chunkSize * blockSize
-		p := mgl32.Vec3{float32(x), 0, 0}
-		w.SpawnChunk(p)
-	}
-}
-
-func (w *World) NearChunks() []*Chunk {
-	// TODO:
-	return w.chunks.All()
-}
-
-func (w *World) PlaceBlock() {
-	if w.target == nil {
+// Places a block next to the target block.
+func (w *World) PlaceBlock(target *TargetBlock) {
+	if target == nil {
 		return
 	}
 
-	curBlock := w.target.block
+	curBlock := target.block
 	i, j, k := curBlock.i, curBlock.j, curBlock.k
-	switch w.target.face {
+	switch target.face {
 	case left:
 		i--
 	case right:
@@ -74,8 +73,7 @@ func (w *World) PlaceBlock() {
 	default: // (none)
 		return
 	}
-
-	log.Println("Placing next to: ", w.target.block.WorldPos())
+	log.Println("Placing next to: ", target.block.WorldPos())
 
 	// bounds check
 	// TODO: place new chunk
@@ -90,74 +88,99 @@ func (w *World) PlaceBlock() {
 	block.chunk.Buffer()
 }
 
-func (w *World) BreakBlock() {
-	if w.target == nil {
+// Breaks the target block.
+func (w *World) BreakBlock(target *TargetBlock) {
+	if target == nil {
 		return
 	}
 
-	log.Println("Breaking: ", w.target.block.WorldPos())
-	w.target.block.active = false
-	w.target.block.chunk.Buffer()
+	log.Println("Breaking: ", target.block.WorldPos())
+
+	target.block.active = false
+	target.block.chunk.Buffer()
 }
 
-func (w *World) LookNear() {
-	var target *TargetBlock
-	for _, c := range w.NearChunks() {
-		t := w.lookAt(c)
-		if t != nil {
-			target = t
-			break
-		}
+// Returns the nearby chunks.
+func (w *World) NearChunks() []*Chunk {
+	// TODO:
+	return w.chunks.All()
+}
+
+// Returns the floor under the given position.
+// Uses the player height to determine if there is a block under.
+func (w *World) FloorUnder(p mgl32.Vec3) *Block {
+	p[1] -= playerHeight
+	floor := w.Block(p)
+	return floor
+}
+
+// Returns the wall next to the given postion if there is.
+// Pass distances for x and z to detect that respecive wall.
+func (w *World) WallNextTo(p mgl32.Vec3, x, z float32) *Block {
+	p[0] += float32(x)
+	p[1] -= playerHeight / 2
+	p[2] += float32(z)
+	wall := w.Block(p)
+
+	p2 := p
+	p2[0] += float32(x)
+	p2[2] += float32(z)
+	wall2 := w.Block(p2)
+
+	if wall != nil {
+		return wall
 	}
 
-	// set target at the end to capture when there is no target
-	// when there is not target it will be nil and this is intentional
-	w.target = target
+	return wall2
 }
 
+// Returns the block at the given position.
+// This takes any position in the world, including non-round postions.
+// Since block faces overlap, the block with the world position component matching the given
+// component will take precedence.
+// E.g.:
+// Block 1: (0,0,0) - Block 2: (1,0,0)
+// Input position: (1,0,0)
+// Output block is 2. (Not obvious because these blocks touch)
 func (w *World) Block(pos mgl32.Vec3) *Block {
-	x, y, z := int(pos.X()), int(pos.Y()), int(pos.Z())
+	floor := func(v float32) int {
+		return int(math.Floor(float64(v)))
+	}
+	x, y, z := floor(pos.X()), floor(pos.Y()), floor(pos.Z())
 
 	// remainder will be the offset inside chunk
 	xoffset := x % chunkSize
 	yoffset := y % chunkSize
 	zoffset := z % chunkSize
 
-	// get the chunk position
+	// if the offsets are negative we flip
+	// because chunk origins are at the lower end corners.
+	// e.g. in the negative octants an example origin is (-16,-16,-16)
+	// while in positive octants it would be (0,0,0).
+	// essentially the chunks are not placed symmetrically with the axes,
+	// hence the special case where we are in the negative octant
+	if xoffset < 0 {
+		// offset = chunkSize - (-offset)
+		xoffset = chunkSize + xoffset
+	}
+	if yoffset < 0 {
+		yoffset = chunkSize + yoffset
+	}
+	if zoffset < 0 {
+		zoffset = chunkSize + zoffset
+	}
+
+	// get the chunk origin position
 	startX := x - xoffset
 	startY := y - yoffset
 	startZ := z - zoffset
 
 	chunkPos := mgl32.Vec3{float32(startX), float32(startY), float32(startZ)}
 	chunk := w.chunks.Get(chunkPos)
-	block := chunk.blocks[xoffset][yoffset][zoffset]
-	return block
-}
-
-func (w *World) lookAt(c *Chunk) *TargetBlock {
-	b, _, _ := w.camera.Ray().IsLookingAt(c.BoundingBox())
-	if !b {
+	if chunk == nil {
 		return nil
 	}
 
-	blocks := c.ActiveBlocks()
-	sort.Slice(blocks, func(i, j int) bool {
-		bb1 := blocks[i].Box()
-		bb2 := blocks[j].Box()
-		d1 := bb1.Distance(w.camera.pos)
-		d2 := bb2.Distance(w.camera.pos)
-		return d1 < d2
-	})
-	for _, block := range blocks {
-		lookingAt, face, hit := w.camera.Ray().IsLookingAt(block.Box())
-		if lookingAt {
-			target := &TargetBlock{
-				block: block,
-				face:  face,
-				hit:   hit,
-			}
-			return target
-		}
-	}
-	return nil
+	block := chunk.blocks[xoffset][yoffset][zoffset]
+	return block
 }

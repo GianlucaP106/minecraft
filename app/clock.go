@@ -2,6 +2,7 @@ package app
 
 import "github.com/go-gl/glfw/v3.3/glfw"
 
+// Provides a timedelta for game simulation.
 type Clock struct {
 	last float64
 }

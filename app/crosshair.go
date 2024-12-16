@@ -5,22 +5,22 @@ import (
 	"github.com/go-gl/mathgl/mgl32"
 )
 
+// Crosshair displays marker on the screen for player.
 type Crosshair struct {
-	camera    *Camera
 	vao       uint32
 	vbo       uint32
 	shader    uint32
 	vertCount int
 }
 
-func newCrosshair(camera *Camera, shader uint32) *Crosshair {
+func newCrosshair(shader uint32) *Crosshair {
 	ch := &Crosshair{
-		camera: camera,
 		shader: shader,
 	}
 	return ch
 }
 
+// Initialize the crosshair metadata on the GPU.
 func (c *Crosshair) Init() {
 	gl.UseProgram(c.shader)
 
@@ -41,6 +41,7 @@ func (c *Crosshair) Init() {
 	c.Buffer()
 }
 
+// Sends the crosshair vertices to GPU.
 func (c *Crosshair) Buffer() {
 	gl.BindBuffer(gl.ARRAY_BUFFER, c.vbo)
 
@@ -64,6 +65,8 @@ func (c *Crosshair) Buffer() {
 	gl.BufferData(gl.ARRAY_BUFFER, len(buffer)*4, gl.Ptr(buffer), gl.STATIC_DRAW)
 }
 
+// Draws the crosshair on the screen.
+// Does not apply view or model transformations because it is not world positioned.
 func (c *Crosshair) Draw() {
 	gl.UseProgram(c.shader)
 	gl.BindVertexArray(c.vao)

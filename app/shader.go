@@ -11,6 +11,7 @@ import (
 	"github.com/go-gl/gl/v4.1-core/gl"
 )
 
+// ShaderManager manages references to shader programs.
 type ShaderManager struct {
 	shaders  map[string]uint32
 	rootPath string
@@ -24,6 +25,7 @@ func newShaderManager(root string) *ShaderManager {
 	return s
 }
 
+// Initializes the shaders found in the rootPath.
 func (s *ShaderManager) init() {
 	dirEntries := func() []fs.FileInfo {
 		dir, err := os.Open(s.rootPath)
@@ -64,6 +66,7 @@ func (s *ShaderManager) init() {
 	}
 }
 
+// Returns a stored reference to a program.
 func (s *ShaderManager) Program(name string) uint32 {
 	e, w := s.shaders[name]
 	if !w {
@@ -72,6 +75,7 @@ func (s *ShaderManager) Program(name string) uint32 {
 	return e
 }
 
+// Creates shader program from sources.
 func (s *ShaderManager) createProgram(vertexShaderSource, fragmentShaderSource string) uint32 {
 	vertexShader, err := s.compile(vertexShaderSource, gl.VERTEX_SHADER)
 	if err != nil {
@@ -107,6 +111,7 @@ func (s *ShaderManager) createProgram(vertexShaderSource, fragmentShaderSource s
 	return program
 }
 
+// Compiles a shader program.
 func (s *ShaderManager) compile(source string, shaderType uint32) (uint32, error) {
 	shader := gl.CreateShader(shaderType)
 

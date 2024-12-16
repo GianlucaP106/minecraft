@@ -5,6 +5,7 @@ import (
 	"github.com/go-gl/mathgl/mgl32"
 )
 
+// Chunk is a chunk of blocks for purposed of rendering.
 type Chunk struct {
 	// blocks in the chunk, position determined by index in array
 	blocks [chunkSize][chunkSize][chunkSize]*Block
@@ -31,6 +32,7 @@ func newChunk(shader uint32, initialPos mgl32.Vec3) *Chunk {
 	return c
 }
 
+// Initialize the chunk metadata on the GPU.
 func (c *Chunk) Init() {
 	gl.UseProgram(c.shader)
 	// TODO: init blocks for now
@@ -60,6 +62,7 @@ func (c *Chunk) Init() {
 	gl.VertexAttribPointerWithOffset(colorAtrrib, 3, gl.FLOAT, false, 6*4, 3*4)
 }
 
+// Sends the chunks vertices to GPU.
 func (c *Chunk) Buffer() {
 	// bind to the vbo
 	gl.BindBuffer(gl.ARRAY_BUFFER, c.vbo)
@@ -104,7 +107,9 @@ func (c *Chunk) Buffer() {
 	gl.BufferData(gl.ARRAY_BUFFER, len(chunk)*4, gl.Ptr(chunk), gl.DYNAMIC_DRAW)
 }
 
-func (c *Chunk) Draw(target *TargetBlock, camera *Camera) {
+// Draws the chunk from the perspective of the provided camera.
+// Sets the "lookedAtBlock" to be the provided target block.
+func (c *Chunk) Draw(target *TargetBlock, view mgl32.Mat4) {
 	gl.UseProgram(c.shader)
 	gl.BindVertexArray(c.vao)
 
@@ -112,9 +117,6 @@ func (c *Chunk) Draw(target *TargetBlock, camera *Camera) {
 	translate := mgl32.Translate3D(c.pos.X(), c.pos.Y(), c.pos.Z())
 	scale := mgl32.Scale3D(1, 1, 1)
 	model := translate.Mul4(scale)
-
-	// view is the camera + perspective matrix
-	view := camera.View()
 
 	// attach model to uniform
 	modelUniform := gl.GetUniformLocation(c.shader, gl.Str("model\x00"))
@@ -129,8 +131,7 @@ func (c *Chunk) Draw(target *TargetBlock, camera *Camera) {
 	lookedAtBlockUniform := gl.GetUniformLocation(c.shader, gl.Str("lookedAtBlock\x00"))
 	if target != nil {
 		isLooking = 1
-		// pos := target.block.WorldPos()
-		pos := target.hit
+		pos := target.block.WorldPos()
 		gl.Uniform3f(lookedAtBlockUniform, pos.X(), pos.Y(), pos.Z())
 	}
 
@@ -142,6 +143,7 @@ func (c *Chunk) Draw(target *TargetBlock, camera *Camera) {
 	gl.DrawArrays(gl.TRIANGLES, 0, int32(c.vertCount))
 }
 
+// Returns the bounding box of the whole chunk.
 func (c *Chunk) BoundingBox() Box {
 	min := mgl32.Vec3(c.pos)
 	const chunkBlockSize = chunkSize * blockSize
@@ -153,6 +155,7 @@ func (c *Chunk) BoundingBox() Box {
 	return newBox(min, max)
 }
 
+// Returns the "active" blocks in the chunk.
 func (c *Chunk) ActiveBlocks() []*Block {
 	out := make([]*Block, 0)
 	for _, layer := range c.blocks {

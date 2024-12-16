@@ -10,5 +10,6 @@ out vec4 fragColor;
 void main() {
     fragColor = vec4(color, 1.0);
     gl_Position = model * vec4(vert, 1);
+    gl_PointSize = 10.0;
 }
 

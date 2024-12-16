@@ -6,6 +6,8 @@ import (
 	"github.com/go-gl/mathgl/mgl32"
 )
 
+// Block represents a single block in the world.
+// A block is part of a chunk.
 type Block struct {
 	// chunk that this block belongs to
 	chunk *Chunk
@@ -16,16 +18,18 @@ type Block struct {
 	// if the block is physically active
 	active bool
 
+	// TODO:
 	color mgl32.Vec3
 }
 
+// TargetBlock holds captures the block being looked at.
 type TargetBlock struct {
 	block *Block
 
 	// the side that is being looked at
 	face BoxFace
 
-	// the world postion of the ray on the block
+	// the world position of the hit on the block
 	hit mgl32.Vec3
 }
 

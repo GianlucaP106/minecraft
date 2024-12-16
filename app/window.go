@@ -8,12 +8,17 @@ import (
 	"github.com/go-gl/glfw/v3.3/glfw"
 )
 
+// Thin wrapper over glfw.Window.
+type Window struct {
+	*glfw.Window
+}
+
 const (
 	windowWidth  = 1200
 	windowHeight = 800
 )
 
-func initWindow() *glfw.Window {
+func newWindow() *Window {
 	runtime.LockOSThread()
 	if err := glfw.Init(); err != nil {
 		log.Fatalln("failed to initialize glfw:", err)
@@ -24,6 +29,7 @@ func initWindow() *glfw.Window {
 	glfw.WindowHint(glfw.ContextVersionMinor, 1)
 	glfw.WindowHint(glfw.OpenGLProfile, glfw.OpenGLCoreProfile)
 	glfw.WindowHint(glfw.OpenGLForwardCompatible, glfw.True)
+
 	window, err := glfw.CreateWindow(windowWidth, windowHeight, "Cube", nil, nil)
 	if err != nil {
 		panic(err)
@@ -34,5 +40,15 @@ func initWindow() *glfw.Window {
 		panic(err)
 	}
 	window.SetInputMode(glfw.CursorMode, glfw.CursorDisabled)
-	return window
+	w := &Window{}
+	w.Window = window
+	return w
+}
+
+func (w *Window) Terminate() {
+	glfw.Terminate()
+}
+
+func (w *Window) IsPressed(k glfw.Key) bool {
+	return w.GetKey(k) == glfw.Press
 }

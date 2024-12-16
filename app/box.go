@@ -2,6 +2,7 @@ package app
 
 import "github.com/go-gl/mathgl/mgl32"
 
+// General bounding box.
 type Box struct {
 	min, max mgl32.Vec3
 }
@@ -25,6 +26,7 @@ func newBox(min, max mgl32.Vec3) Box {
 	}
 }
 
+// Measures and returns the distance between the box and a given position.
 func (b *Box) Distance(pos mgl32.Vec3) float32 {
 	min := b.min
 	max := b.max
