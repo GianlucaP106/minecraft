@@ -63,16 +63,10 @@ func (l *Laser) Buffer(x1, x2 mgl32.Vec3) {
 func (l *Laser) Draw(view mgl32.Mat4, p1, p2 mgl32.Vec3) {
 	gl.UseProgram(l.shader)
 	gl.BindVertexArray(l.vao)
-
 	l.Buffer(p1, p2)
-
-	// model := mgl32.Translate3D(0, 37, 0.0)
-	// model = view.Mul4(model)
-	// model := translate.Mul4(scale)
 	model := view
 	modelUniform := gl.GetUniformLocation(l.shader, gl.Str("model\x00"))
 	gl.UniformMatrix4fv(modelUniform, 1, false, &model[0])
 
 	gl.DrawArrays(gl.LINES, 0, int32(l.vertCount))
-	gl.DrawArrays(gl.POINTS, 1, int32(1))
 }

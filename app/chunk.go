@@ -33,13 +33,17 @@ func newChunk(shader uint32, initialPos mgl32.Vec3) *Chunk {
 }
 
 // Initialize the chunk metadata on the GPU.
-func (c *Chunk) Init() {
+// Sets the given block to be active as the first block.
+func (c *Chunk) Init(i, j, k int) {
 	gl.UseProgram(c.shader)
-	// TODO: init blocks for now
-	for i := 0; i < chunkSize; i++ {
-		for j := 0; j < chunkSize; j++ {
-			for k := 0; k < chunkSize; k++ {
-				c.blocks[i][j][k] = newBlock(c, i, j, k)
+	for i2 := 0; i2 < chunkSize; i2++ {
+		for j2 := 0; j2 < chunkSize; j2++ {
+			for k2 := 0; k2 < chunkSize; k2++ {
+				b := newBlock(c, i2, j2, k2)
+				c.blocks[i2][j2][k2] = b
+				if i == i2 && j == j2 && k == k2 {
+					b.active = true
+				}
 			}
 		}
 	}
@@ -72,9 +76,9 @@ func (c *Chunk) Buffer() {
 
 	// start building chunk
 	chunk := make([]float32, 0)
-	for _, layer := range c.blocks {
-		for _, row := range layer {
-			for _, block := range row {
+	for i, layer := range c.blocks {
+		for j, row := range layer {
+			for k, block := range row {
 				if block == nil || !block.active {
 					continue
 				}
@@ -83,9 +87,29 @@ func (c *Chunk) Buffer() {
 				// this involves precomputing the vertices for all blocks in chunk once,
 				// storing these vertices in the ChunkRenderer instead of computing them at each buffer call
 
+				// get vertices for visible excludeFaces only
+				// TODO: consider other chunks as well
+				var excludeFaces [6]bool
+				checkExclude := func(i, j, k int, face Direction) {
+					if i < 0 || i >= chunkSize || j < 0 || j >= chunkSize || k < 0 || k >= chunkSize {
+						return
+					}
+
+					b := c.blocks[i][j][k]
+					if b.active {
+						excludeFaces[face] = true
+					}
+				}
+				checkExclude(i, j, k+1, south)
+				checkExclude(i, j, k-1, north)
+				checkExclude(i, j+1, k, up)
+				checkExclude(i, j-1, k, down)
+				checkExclude(i-1, j, k, west)
+				checkExclude(i+1, j, k, east)
+
 				// translate vertices to respective pos in chunk
 				translate := block.Translate()
-				for _, vert := range block.Vertices() {
+				for _, vert := range block.Vertices(excludeFaces) {
 					c.vertCount++
 
 					pos := translate.Mul4x1(vert.Vec4(1))
@@ -104,7 +128,9 @@ func (c *Chunk) Buffer() {
 	}
 
 	// send vertices to gpu
-	gl.BufferData(gl.ARRAY_BUFFER, len(chunk)*4, gl.Ptr(chunk), gl.DYNAMIC_DRAW)
+	if len(chunk) > 0 {
+		gl.BufferData(gl.ARRAY_BUFFER, len(chunk)*4, gl.Ptr(chunk), gl.DYNAMIC_DRAW)
+	}
 }
 
 // Draws the chunk from the perspective of the provided camera.
@@ -114,9 +140,7 @@ func (c *Chunk) Draw(target *TargetBlock, view mgl32.Mat4) {
 	gl.BindVertexArray(c.vao)
 
 	// build model without view (model translates to world position)
-	translate := mgl32.Translate3D(c.pos.X(), c.pos.Y(), c.pos.Z())
-	scale := mgl32.Scale3D(1, 1, 1)
-	model := translate.Mul4(scale)
+	model := mgl32.Translate3D(c.pos.X(), c.pos.Y(), c.pos.Z())
 
 	// attach model to uniform
 	modelUniform := gl.GetUniformLocation(c.shader, gl.Str("model\x00"))
@@ -158,10 +182,21 @@ func (c *Chunk) BoundingBox() Box {
 // Returns the "active" blocks in the chunk.
 func (c *Chunk) ActiveBlocks() []*Block {
 	out := make([]*Block, 0)
+	for _, b := range c.AllBlocks() {
+		if b != nil && b.active {
+			out = append(out, b)
+		}
+	}
+	return out
+}
+
+// Returns all blocks.
+func (c *Chunk) AllBlocks() []*Block {
+	out := make([]*Block, 0)
 	for _, layer := range c.blocks {
 		for _, row := range layer {
 			for _, block := range row {
-				if block != nil && block.active {
+				if block != nil {
 					out = append(out, block)
 				}
 			}

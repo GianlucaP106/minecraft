@@ -23,30 +23,44 @@ func newWorld(chunkShader uint32) *World {
 	return w
 }
 
+// Spawns an empty chunk (i.e does not initialize a first block)
+func (w *World) SpawnFullChunk(p mgl32.Vec3) *Chunk {
+	c := w.SpawnChunk(p, -1, -1, -1)
+	for _, b := range c.AllBlocks() {
+		b.active = true
+	}
+	c.Buffer()
+	return c
+}
+
 func (w *World) SpawnPlatform() {
-	// for i := 0; i < 5; i++ {
-	// 	y := 0
-	// 	// if i%2 == 0 {
-	// 	// 	y *= -1
-	// 	// }
-	// 	x := i * chunkSize * blockSize
-	// 	p := mgl32.Vec3{float32(x), float32(y), 0}
-	// 	w.SpawnChunk(p)
-	// }
-	w.SpawnChunk(mgl32.Vec3{0, 0, 0})
-	w.SpawnChunk(mgl32.Vec3{-0, -16, 0})
-	w.SpawnChunk(mgl32.Vec3{-16, -16, 0})
+	w.SpawnFullChunk(mgl32.Vec3{0, 0, 0})
+	w.SpawnFullChunk(mgl32.Vec3{0, -16, 0})
+	w.SpawnFullChunk(mgl32.Vec3{-16, -16, 0})
 }
 
 // Spawns a new chunk at the given position.
 // The param should a be a "valid" chunk position.
-func (w *World) SpawnChunk(pos mgl32.Vec3) *Chunk {
+// Initializes the chunk with provided first block.
+func (w *World) SpawnChunk(pos mgl32.Vec3, i, j, k int) *Chunk {
+	if int(pos.X())%chunkSize != 0 ||
+		int(pos.Y())%chunkSize != 0 ||
+		int(pos.Z())%chunkSize != 0 {
+		panic("invalid chunk position")
+	}
+	log.Println("Spawning new chunk with postion: ", pos)
+
 	// init chunk, attribs and pointers
 	chunk := newChunk(w.chunkShader, pos)
 	w.chunks.Set(pos, chunk)
-	chunk.Init()
+	chunk.Init(i, j, k)
 	chunk.Buffer()
 	return chunk
+}
+
+// Spawns an empty chunk (i.e does not initialize a first block)
+func (w *World) SpawnEmptyChunk(p mgl32.Vec3) *Chunk {
+	return w.SpawnChunk(p, -1, -1, -1)
 }
 
 // Places a block next to the target block.
@@ -55,37 +69,52 @@ func (w *World) PlaceBlock(target *TargetBlock) {
 		return
 	}
 
-	curBlock := target.block
-	i, j, k := curBlock.i, curBlock.j, curBlock.k
-	switch target.face {
-	case left:
-		i--
-	case right:
-		i++
-	case bottom:
-		j--
-	case top:
-		j++
-	case back:
-		k--
-	case front:
-		k++
-	default: // (none)
+	relPos := mgl32.Vec3{
+		float32(target.block.i),
+		float32(target.block.j),
+		float32(target.block.k),
+	}
+
+	newPos := relPos.Add(target.face.Direction())
+	if newPos == relPos {
+		// if face doesnt give direction (not calculated)
 		return
 	}
-	log.Println("Placing next to: ", target.block.WorldPos())
 
-	// bounds check
-	// TODO: place new chunk
+	i, j, k := int(newPos[0]), int(newPos[1]), int(newPos[2])
+	chunk := target.block.chunk
+
+	// if new pos not in this chunk we shift chunks
 	if i < 0 || i >= chunkSize ||
 		j < 0 || j >= chunkSize ||
 		k < 0 || k >= chunkSize {
-		return
+		// we can apply the direction from the BoxFace to the new
+		newChunkPos := chunk.pos.Add(target.face.Direction().Mul(chunkSize))
+		chunk = w.chunks.Get(newChunkPos)
+
+		// if chunk not yet spawned
+		if chunk == nil {
+			chunk = w.SpawnEmptyChunk(newChunkPos)
+		}
+
+		// rollover indices to the next chunk
+		// if v == -1 then new index: 15
+		// if v == 16, then new index: 0
+		rollover := func(v int) int {
+			if v < 0 {
+				v += chunkSize
+			}
+			return v % chunkSize
+		}
+		i = rollover(i)
+		j = rollover(j)
+		k = rollover(k)
 	}
 
-	block := curBlock.chunk.blocks[i][j][k]
+	block := chunk.blocks[i][j][k]
+	log.Println("Placing new block at position: ", block.WorldPos())
 	block.active = true
-	block.chunk.Buffer()
+	chunk.Buffer()
 }
 
 // Breaks the target block.
@@ -102,7 +131,6 @@ func (w *World) BreakBlock(target *TargetBlock) {
 
 // Returns the nearby chunks.
 func (w *World) NearChunks() []*Chunk {
-	// TODO:
 	return w.chunks.All()
 }
 
@@ -114,15 +142,48 @@ func (w *World) FloorUnder(p mgl32.Vec3) *Block {
 	return floor
 }
 
+// Returns (-1, 0, 1, 2) for both X and Z to which represents if a wall is present.
+func (w *World) WallsNextTo(p mgl32.Vec3) (wallX, wallZ int) {
+	// get colliders
+	blockX1 := w.WallNextTo(p, -0.5, 0)
+	blockX2 := w.WallNextTo(p, 0.5, 0)
+	blockZ1 := w.WallNextTo(p, 0, -0.5)
+	blockZ2 := w.WallNextTo(p, 0, 0.5)
+
+	// count in x and x direction
+	wallX = 0
+	if blockX1 != nil && blockX1.active {
+		wallX++
+	}
+	if blockX2 != nil && blockX2.active {
+		wallX++
+	}
+	if blockX1 != nil && blockX1.active && wallX == 1 {
+		wallX = -1
+	}
+	wallZ = 0
+	if blockZ1 != nil && blockZ1.active {
+		wallZ++
+	}
+	if blockZ2 != nil && blockZ2.active {
+		wallZ++
+	}
+	if blockZ1 != nil && blockZ1.active && wallZ == 1 {
+		wallZ = -1
+	}
+	return
+}
+
 // Returns the wall next to the given postion if there is.
 // Pass distances for x and z to detect that respecive wall.
 func (w *World) WallNextTo(p mgl32.Vec3, x, z float32) *Block {
+	p2 := p
+
 	p[0] += float32(x)
 	p[1] -= playerHeight / 2
 	p[2] += float32(z)
 	wall := w.Block(p)
 
-	p2 := p
 	p2[0] += float32(x)
 	p2[2] += float32(z)
 	wall2 := w.Block(p2)
@@ -136,12 +197,6 @@ func (w *World) WallNextTo(p mgl32.Vec3, x, z float32) *Block {
 
 // Returns the block at the given position.
 // This takes any position in the world, including non-round postions.
-// Since block faces overlap, the block with the world position component matching the given
-// component will take precedence.
-// E.g.:
-// Block 1: (0,0,0) - Block 2: (1,0,0)
-// Input position: (1,0,0)
-// Output block is 2. (Not obvious because these blocks touch)
 func (w *World) Block(pos mgl32.Vec3) *Block {
 	floor := func(v float32) int {
 		return int(math.Floor(float64(v)))
@@ -154,11 +209,7 @@ func (w *World) Block(pos mgl32.Vec3) *Block {
 	zoffset := z % chunkSize
 
 	// if the offsets are negative we flip
-	// because chunk origins are at the lower end corners.
-	// e.g. in the negative octants an example origin is (-16,-16,-16)
-	// while in positive octants it would be (0,0,0).
-	// essentially the chunks are not placed symmetrically with the axes,
-	// hence the special case where we are in the negative octant
+	// because chunk origins are at the lower end corners
 	if xoffset < 0 {
 		// offset = chunkSize - (-offset)
 		xoffset = chunkSize + xoffset

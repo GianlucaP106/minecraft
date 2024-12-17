@@ -71,8 +71,6 @@ func (c *Crosshair) Draw() {
 	gl.UseProgram(c.shader)
 	gl.BindVertexArray(c.vao)
 
-	// translate := mgl32.Translate3D(-0.1, -0.1, 0.0)
-	// model := translate.Mul4(scale)
 	model := mgl32.Ident4()
 	modelUniform := gl.GetUniformLocation(c.shader, gl.Str("model\x00"))
 	gl.UniformMatrix4fv(modelUniform, 1, false, &model[0])
