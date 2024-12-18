@@ -27,14 +27,20 @@ func newCamera(initialPos mgl32.Vec3) *Camera {
 	c.pos = initialPos
 	c.view = mgl32.Vec3{0, 0, -1}
 	c.up = mgl32.Vec3{0, 1, 0}
-	c.projection = mgl32.Perspective(mgl32.DegToRad(45.0), float32(windowWidth)/windowHeight, 0.1, 1000.0)
+	c.projection = mgl32.Perspective(mgl32.DegToRad(45.0), float32(windowWidth)/windowHeight, 0.01, 1000.0)
 	return c
+}
+
+// Returns the transformation view matrix to a apply to world postioned vertices.
+func (c *Camera) Mat() mgl32.Mat4 {
+	view := mgl32.LookAtV(c.pos, c.pos.Add(c.view), c.up)
+	return c.projection.Mul4(view)
 }
 
 // Returns the transformation view matrix to a apply to world postioned vertices.
 func (c *Camera) View() mgl32.Mat4 {
 	view := mgl32.LookAtV(c.pos, c.pos.Add(c.view), c.up)
-	return c.projection.Mul4(view)
+	return view
 }
 
 // Returns the cross vector: view x up.
@@ -42,50 +48,9 @@ func (c *Camera) cross() mgl32.Vec3 {
 	return c.view.Cross(c.up)
 }
 
-// Moves the camera forward/backward and left/right taking account time delta.
-// Applies gravity to the movement.
-// Applies constraints based on the passed wallX and wallZ.
-// wall can be (-1,0,1,2) where 2 is both -1 and 1
-func (c *Camera) Move(forward, right float32, fall, fly bool, wallX, wallZ int, delta float64) {
-	// combine movement into vector and normalize
-	movement := c.view.Mul(forward).Add(c.cross().Mul(right))
-	if movement.Len() > 0 {
-		movement = movement.Normalize()
-	}
-
-	// apply wall constraints
-	if wallX > 1 || float32(wallX)*movement[0] > 0 {
-		// a * b > 0 if they are both same sign
-		// therefore if the movement is in the same direction as wall we dont move
-		movement[0] = 0
-	}
-	if wallZ > 1 || float32(wallZ)*movement[2] > 0 {
-		movement[2] = 0
-	}
-
-	// apply speed to movement
-	movement = movement.Mul(float32(delta * 10))
-
-	// apply gravity
-	// TODO: can use the delta for gravity
-	if !fly {
-		if fall {
-			movement[1] = -0.1
-		} else {
-			movement[1] = 0
-		}
-	}
-
-	// apply movement constraints based on surroundings
-	newPos := c.pos.Add(movement)
-
-	// finally set the new position
-	c.pos = newPos
-}
-
 // Orients the camera based on the new screenX and screenY params.
 // Camera holds the prevScreenX and prevScreenY which are used to obtain a delta.
-// TODO: enure there is no gimbal lock
+// TODO: enure there is no gimbal lock (limit pitch and yaw)
 func (c *Camera) Look(screenX, screenY float32) {
 	deltaX := -screenX + c.prevScreenX
 	deltaY := screenY - c.prevScreenY

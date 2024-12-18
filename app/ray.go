@@ -1,80 +1,102 @@
 package app
 
-import "github.com/go-gl/mathgl/mgl32"
+import (
+	"math"
+
+	"github.com/go-gl/mathgl/mgl32"
+)
 
 type Ray struct {
 	origin    mgl32.Vec3
 	direction mgl32.Vec3
+	length    float32
 }
 
-func (r Ray) LookAt(b Box) (bool, BoxFace, mgl32.Vec3) {
-	bmin := b.min
-	bmax := b.max
+// March marches in the direction of the ray, detection the first the block in sight,
+// where the callback determines if a block is present.
+func (r Ray) March(find func(p mgl32.Vec3) bool) (bool, Direction, mgl32.Vec3) {
+	// finds the smallest `t` such that `s + (ds * t)` is a natural number
+	// i.e finds the next block point
+	intbound := func(s, ds mgl32.Vec3) mgl32.Vec3 {
+		c := func(s, ds float32) float32 {
+			if ds > 0 {
+				return (float32(math.Ceil(float64(s))) - s) / float32(math.Abs(float64(ds)))
+			} else if ds < 0 {
+				return (s - float32(math.Floor(float64(s)))) / float32(math.Abs(float64(ds)))
+			}
+			return float32(math.Inf(1))
+		}
 
-	tMin := (bmin.X() - r.origin.X()) / r.direction.X()
-	tMax := (bmax.X() - r.origin.X()) / r.direction.X()
-
-	tmin := min(tMin, tMax)
-	tmax := max(tMin, tMax)
-
-	if tMin > tMax {
-		tMin, tMax = tMax, tMin
+		return mgl32.Vec3{
+			c(s.X(), ds.X()),
+			c(s.Y(), ds.Y()),
+			c(s.Z(), ds.Z()),
+		}
 	}
 
-	tyMin := (bmin.Y() - r.origin.Y()) / r.direction.Y()
-	tyMax := (bmax.Y() - r.origin.Y()) / r.direction.Y()
-
-	tmin = max(tmin, min(tyMin, tyMax))
-	tmax = min(tmax, max(tyMin, tyMax))
-
-	if tyMin > tyMax {
-		tyMin, tyMax = tyMax, tyMin
+	p := mgl32.Vec3{
+		floor(r.origin.X()),
+		floor(r.origin.Y()),
+		floor(r.origin.Z()),
+	}
+	step := mgl32.Vec3{
+		sign(r.direction.X()),
+		sign(r.direction.Y()),
+		sign(r.direction.Z()),
 	}
 
-	if tMin > tyMax || tyMin > tMax {
-		return false, none, mgl32.Vec3{}
+	tmax := intbound(r.origin, r.direction)
+	tdelta := mgl32.Vec3{
+		step.X() / r.direction.X(),
+		step.Y() / r.direction.Y(),
+		step.Z() / r.direction.Z(),
 	}
+	radius := r.length / r.direction.Len()
 
-	if tyMin > tMin {
-		tMin = tyMin
+	var face Direction
+	for {
+		if find(p) {
+			return true, face, p
+		}
+
+		if tmax.X() < tmax.Y() {
+			if tmax.X() < tmax.Z() {
+				if tmax.X() > radius {
+					break
+				}
+
+				p[0] += step.X()
+				tmax[0] += tdelta.X()
+
+				face = newDirection(mgl32.Vec3{-step.X(), 0, 0})
+			} else {
+				if tmax.Z() > radius {
+					break
+				}
+
+				p[2] += step.Z()
+				tmax[2] += tdelta.Z()
+				face = newDirection(mgl32.Vec3{0, 0, -step.Z()})
+			}
+		} else {
+			if tmax.Y() < tmax.Z() {
+				if tmax.Y() > radius {
+					break
+				}
+
+				p[1] += step.Y()
+				tmax[1] += tdelta.Y()
+				face = newDirection(mgl32.Vec3{0, -step.Y(), 0})
+			} else {
+				if tmax.Z() > radius {
+					break
+				}
+
+				p[2] += step.Z()
+				tmax[2] += tdelta.Z()
+				face = newDirection(mgl32.Vec3{0, 0, -step.Z()})
+			}
+		}
 	}
-	if tyMax < tMax {
-		tMax = tyMax
-	}
-
-	tzMin := (bmin.Z() - r.origin.Z()) / r.direction.Z()
-	tzMax := (bmax.Z() - r.origin.Z()) / r.direction.Z()
-
-	tmin = max(tmin, min(tzMin, tzMax))
-	tmax = min(tmax, max(tzMin, tzMax))
-
-	if tzMin > tzMax {
-		tzMin, tzMax = tzMax, tzMin
-	}
-
-	if tMin > tzMax || tzMin > tMax {
-		return false, none, mgl32.Vec3{}
-	}
-
-	hitPos := r.origin.Add(r.direction.Mul(tmin))
-
-	var face BoxFace
-	switch {
-	case hitPos.X() == bmin.X():
-		face = left
-	case hitPos.X() == bmax.X():
-		face = right
-	case hitPos.Y() == bmin.Y():
-		face = bottom
-	case hitPos.Y() == bmax.Y():
-		face = top
-	case hitPos.Z() == bmin.Z():
-		face = back
-	case hitPos.Z() == bmax.Z():
-		face = front
-	default:
-		face = none
-	}
-
-	return true, face, hitPos
+	return false, none, mgl32.Vec3{}
 }

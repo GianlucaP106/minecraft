@@ -1,10 +1,9 @@
 package app
 
 import (
-	"fmt"
-
 	"github.com/go-gl/gl/v4.1-core/gl"
 	"github.com/go-gl/glfw/v3.3/glfw"
+	"github.com/go-gl/mathgl/mgl32"
 )
 
 // Root app instance.
@@ -30,7 +29,8 @@ type Game struct {
 	// provides time delta for game loop
 	clock *Clock
 
-	laser *Laser
+	// physics engine for player movements and collisions
+	physics *PhysicsEngine
 }
 
 // Initializes the app. Executes before the game loop.
@@ -45,13 +45,15 @@ func (g *Game) Init() {
 	// init shader program manager and add shaders
 	g.shaders = newShaderManager("./shaders")
 
-	// init world camera and crosshair
-	g.player = newPlayer(g.window)
+	g.physics = newPhysicsEngine()
+	g.player = newPlayer()
+	g.physics.Register(g.player.body)
+
 	g.crosshair = newCrosshair(g.shaders.Program("crosshair"))
 	g.crosshair.Init()
 
 	// init world
-	g.world = newWorld(g.shaders.Program("main"))
+	g.world = newWorld(g.shaders.Program("chunk"))
 	g.world.SpawnPlatform()
 
 	// init the clock which computes delta for time based computations
@@ -60,9 +62,6 @@ func (g *Game) Init() {
 	// set key and mouse handlers
 	g.SetLookHandler()
 	g.SetMouseClickHandler()
-
-	g.laser = newLaser(g.shaders.Program("crosshair"))
-	g.laser.Init()
 }
 
 // Runs the game loop.
@@ -70,46 +69,30 @@ func (g *Game) Run() {
 	defer g.window.Terminate()
 	g.clock.Start()
 
-	// x1 := mgl32.Vec3{0, 33, 0.0}
-	// x2 := mgl32.Vec3{10, 33, 0.0}
-
 	for !g.window.ShouldClose() && !g.window.IsPressed(glfw.KeyQ) {
 		// clear buffers
 		gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
 
 		delta := g.clock.Delta()
 
-		// look near by to select a target block
+		// handle movements
+		g.HandleMovePlayer()
+		g.HandleJump()
 		g.LookBlock()
 
-		// ... //
-
-		g.MovePlayer(delta)
+		g.physics.Tick(delta)
 
 		for _, c := range g.world.NearChunks() {
 			var target *TargetBlock
 			if g.target != nil && g.target.block.chunk == c {
+				// if a block is being looked at in this chunk
 				target = g.target
 			}
-
-			c.Draw(target, g.player.camera.View())
+			c.Draw(target, g.player.camera.Mat())
 		}
 
-		// ... //
-
-		// draw cross hair and potential overlays
+		// draw cross hair
 		g.crosshair.Draw()
-		// x2[0] += float32(delta) * 10
-		if g.target != nil {
-			fmt.Println(g.player.camera.pos, g.target.hit)
-			p := g.player.camera.pos.
-				Add(g.player.camera.view.
-					Mul(3).
-					Add(g.player.camera.
-						cross().
-						Mul(1)))
-			g.laser.Draw(g.player.camera.View(), p, g.target.hit)
-		}
 
 		// window maintenance
 		g.window.SwapBuffers()
@@ -120,55 +103,50 @@ func (g *Game) Run() {
 // Looks for blocks from the perspective of player.
 // Will set the target block if currently looking at one.
 func (g *Game) LookBlock() {
-	var target *TargetBlock
-	for _, c := range g.world.NearChunks() {
-		t := g.player.LookAt(c)
-		if t != nil {
-			target = t
-			break
+	ray := g.player.Ray()
+	b, face, hit := ray.March(func(p mgl32.Vec3) bool {
+		block := g.world.Block(p)
+		return block != nil && block.active
+	})
+	if b {
+		block := g.world.Block(hit)
+		g.target = &TargetBlock{
+			block: block,
+			face:  face,
 		}
+	} else {
+		g.target = nil
 	}
-
-	// set target at the end to capture when there is no target
-	// when there is not target it will be nil and this is intentional
-	g.target = target
 }
 
-func (g *Game) MovePlayer(delta float64) {
-	floor := g.world.FloorUnder(g.player.camera.pos)
-	blockX1 := g.world.WallNextTo(g.player.camera.pos, -0.5, 0)
-	blockX2 := g.world.WallNextTo(g.player.camera.pos, 0.5, 0)
-	blockZ1 := g.world.WallNextTo(g.player.camera.pos, 0, -0.5)
-	blockZ2 := g.world.WallNextTo(g.player.camera.pos, 0, 0.5)
+func (g *Game) HandleJump() {
+	if g.player.body.grounded && g.window.IsPressed(glfw.KeySpace) {
+		g.player.body.Jump()
+	}
+}
 
-	wallX := 0
-	if blockX1 != nil && blockX1.active {
-		wallX++
-	}
-	if blockX2 != nil && blockX2.active {
-		wallX++
-	}
-	if blockX1 != nil && blockX1.active && wallX == 1 {
-		wallX = -1
-	}
+func (g *Game) HandleMovePlayer() {
+	floor := g.world.FloorUnder(g.player.body.position)
+	// wallX, wallZ := g.world.WallsNextTo(g.player.body.position)
 
-	wallZ := 0
-	if blockZ1 != nil && blockZ1.active {
-		wallZ++
+	var rightMove float32
+	var forwardMove float32
+
+	if g.window.IsPressed(glfw.KeyA) {
+		rightMove--
 	}
-	if blockZ2 != nil && blockZ2.active {
-		wallZ++
+	if g.window.IsPressed(glfw.KeyD) {
+		rightMove++
 	}
-	if blockZ1 != nil && blockZ1.active && wallZ == 1 {
-		wallZ = -1
+	if g.window.IsPressed(glfw.KeyW) {
+		forwardMove++
+	}
+	if g.window.IsPressed(glfw.KeyS) {
+		forwardMove--
 	}
 
-	g.player.HandleMove(
-		delta,
-		floor == nil || !floor.active,
-		wallX,
-		wallZ,
-	)
+	movement := g.player.Movement(forwardMove, rightMove, 10*g.player.body.mass)
+	g.player.body.Move(movement, floor != nil && floor.active, false, 0, 0)
 }
 
 // Sets a key callback function to handle mouse movement.
@@ -178,6 +156,7 @@ func (g *Game) SetLookHandler() {
 	})
 }
 
+// Sets handlers for mouse click and calls break/place block.
 func (g *Game) SetMouseClickHandler() {
 	var isPressedLeft bool
 	var isPressedRight bool
