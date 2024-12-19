@@ -1,16 +1,22 @@
 package app
 
-import "github.com/go-gl/mathgl/mgl32"
+import (
+	"math"
+
+	"github.com/go-gl/mathgl/mgl32"
+)
 
 // General bounding box.
 type Box struct {
-	min, max mgl32.Vec3
+	min, center, max mgl32.Vec3
 }
 
 func newBox(min, max mgl32.Vec3) Box {
+	half := max.Sub(min).Mul(0.5)
 	return Box{
-		min: min,
-		max: max,
+		min:    min,
+		max:    max,
+		center: min.Add(half),
 	}
 }
 
@@ -48,6 +54,34 @@ func (b *Box) Distance(pos mgl32.Vec3) float32 {
 
 	v := mgl32.Vec3{x, y, z}
 	return v.Len()
+}
+
+// Returns true of the boxes intersect.
+func (b *Box) Intersection(b2 Box) (bool, mgl32.Vec3) {
+	if !(b.min.X() <= b2.max.X() &&
+		b.max.X() >= b2.min.X() &&
+		b.min.Z() <= b2.max.Z() &&
+		b.max.Z() >= b2.min.Z()) {
+
+		return false, mgl32.Vec3{}
+	}
+
+	overlapX1 := b.max.X() - b2.min.X()
+	overlapX2 := b2.max.X() - b.min.X()
+	overlapZ1 := b.max.Z() - b2.min.Z()
+	overlapZ2 := b2.max.Z() - b.min.Z()
+
+	depthX := float32(math.Min(float64(overlapX1), float64(overlapX2)))
+	depthZ := float32(math.Min(float64(overlapZ1), float64(overlapZ2)))
+
+	var penetration mgl32.Vec3
+	if depthX < depthZ {
+		penetration = mgl32.Vec3{sign(overlapX2-overlapX1) * depthX, 0, 0}
+	} else {
+		penetration = mgl32.Vec3{0, 0, sign(overlapZ2-overlapZ1) * depthZ}
+	}
+
+	return true, penetration
 }
 
 type Direction uint

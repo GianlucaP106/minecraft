@@ -74,7 +74,12 @@ func (b *Block) Translate() mgl32.Mat4 {
 
 // Returns bounding box around block.
 func (b *Block) Box() Box {
-	min := b.WorldPos()
+	half := float32(blockSize / 2.0)
+	min := b.WorldPos().Sub(mgl32.Vec3{
+		half,
+		half,
+		half,
+	})
 	max := min.Add(mgl32.Vec3{
 		blockSize,
 		blockSize,

@@ -143,35 +143,21 @@ func (w *World) FloorUnder(p mgl32.Vec3) *Block {
 }
 
 // Returns (-1, 0, 1, 2) for both X and Z to which represents if a wall is present.
-func (w *World) WallsNextTo(p mgl32.Vec3) (wallX, wallZ int) {
+func (w *World) WallsNextTo(p mgl32.Vec3) []*Block {
 	// get colliders
-	blockX1 := w.WallNextTo(p, -0.5, 0)
-	blockX2 := w.WallNextTo(p, 0.5, 0)
-	blockZ1 := w.WallNextTo(p, 0, -0.5)
-	blockZ2 := w.WallNextTo(p, 0, 0.5)
-
-	// count in x and x direction
-	wallX = 0
-	if blockX1 != nil && blockX1.active {
-		wallX++
+	walls := []*Block{
+		w.WallNextTo(p, -0.5, 0),
+		w.WallNextTo(p, 0.5, 0),
+		w.WallNextTo(p, 0, -0.5),
+		w.WallNextTo(p, 0, 0.5),
 	}
-	if blockX2 != nil && blockX2.active {
-		wallX++
+	out := make([]*Block, 0)
+	for _, b := range walls {
+		if b != nil && b.active {
+			out = append(out, b)
+		}
 	}
-	if blockX1 != nil && blockX1.active && wallX == 1 {
-		wallX = -1
-	}
-	wallZ = 0
-	if blockZ1 != nil && blockZ1.active {
-		wallZ++
-	}
-	if blockZ2 != nil && blockZ2.active {
-		wallZ++
-	}
-	if blockZ1 != nil && blockZ1.active && wallZ == 1 {
-		wallZ = -1
-	}
-	return
+	return out
 }
 
 // Returns the wall next to the given postion if there is.

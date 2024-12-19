@@ -52,3 +52,7 @@ func (w *Window) Terminate() {
 func (w *Window) IsPressed(k glfw.Key) bool {
 	return w.GetKey(k) == glfw.Press
 }
+
+func (w *Window) IsReleased(k glfw.Key) bool {
+	return w.GetKey(k) == glfw.Release
+}

@@ -31,6 +31,8 @@ type Game struct {
 
 	// physics engine for player movements and collisions
 	physics *PhysicsEngine
+
+	jumpDebounce bool
 }
 
 // Initializes the app. Executes before the game loop.
@@ -74,6 +76,9 @@ func (g *Game) Run() {
 		gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
 
 		delta := g.clock.Delta()
+
+		// set colliders close by
+		g.SetColliders()
 
 		// handle movements
 		g.HandleMovePlayer()
@@ -119,15 +124,35 @@ func (g *Game) LookBlock() {
 	}
 }
 
+// Sets the colliders surrounding the player (walls).
+// TODO: handle floor collision and "double" walls
+func (g *Game) SetColliders() {
+	walls := g.world.WallsNextTo(g.player.body.position)
+	walls = append(walls, g.world.WallsNextTo(g.player.body.position.Add(mgl32.Vec3{0, 0.5, 0}))...)
+	g.physics.colliders = make([]*Box, 0)
+
+	for _, b := range walls {
+		box := b.Box()
+		g.physics.colliders = append(g.physics.colliders, &box)
+	}
+
+	g.player.body.collider = &Box{
+		min: g.player.body.position.Sub(mgl32.Vec3{playerWidth / 2, playerHeight, playerWidth / 2}),
+		max: g.player.body.position.Add(mgl32.Vec3{playerWidth / 2, 0, playerWidth / 2}),
+	}
+}
+
 func (g *Game) HandleJump() {
-	if g.player.body.grounded && g.window.IsPressed(glfw.KeySpace) {
+	if g.window.IsPressed(glfw.KeySpace) && !g.jumpDebounce && g.player.body.grounded {
+		g.jumpDebounce = true
 		g.player.body.Jump()
+	} else if g.window.IsReleased(glfw.KeySpace) {
+		g.jumpDebounce = false
 	}
 }
 
 func (g *Game) HandleMovePlayer() {
 	floor := g.world.FloorUnder(g.player.body.position)
-	// wallX, wallZ := g.world.WallsNextTo(g.player.body.position)
 
 	var rightMove float32
 	var forwardMove float32
@@ -145,8 +170,7 @@ func (g *Game) HandleMovePlayer() {
 		forwardMove--
 	}
 
-	movement := g.player.Movement(forwardMove, rightMove, 10*g.player.body.mass)
-	g.player.body.Move(movement, floor != nil && floor.active, false, 0, 0)
+	g.player.Move(forwardMove, rightMove, floor != nil && floor.active)
 }
 
 // Sets a key callback function to handle mouse movement.
