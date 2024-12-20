@@ -1,6 +1,7 @@
 package app
 
 import (
+	"fmt"
 	"log"
 	"math"
 
@@ -9,17 +10,20 @@ import (
 
 // World holds the terrain, map and manages entity lifecycles.
 type World struct {
+	atlas *TextureAtlas
+
 	// chunk map, provides lookup by location
 	chunks VecMap[Chunk]
 
 	// shader program that draws the chunks
-	chunkShader uint32
+	chunkShader *Shader
 }
 
-func newWorld(chunkShader uint32) *World {
+func newWorld(chunkShader *Shader, atlas *TextureAtlas) *World {
 	w := &World{}
 	w.chunkShader = chunkShader
 	w.chunks = newVecMap[Chunk]()
+	w.atlas = atlas
 	return w
 }
 
@@ -43,6 +47,9 @@ func (w *World) SpawnPlatform() {
 // The param should a be a "valid" chunk position.
 // Initializes the chunk with provided first block.
 func (w *World) SpawnChunk(pos mgl32.Vec3, i, j, k int) *Chunk {
+	////
+	fmt.Println(w.atlas.Coords(0, 10))
+
 	if int(pos.X())%chunkSize != 0 ||
 		int(pos.Y())%chunkSize != 0 ||
 		int(pos.Z())%chunkSize != 0 {
@@ -51,7 +58,7 @@ func (w *World) SpawnChunk(pos mgl32.Vec3, i, j, k int) *Chunk {
 	log.Println("Spawning new chunk with postion: ", pos)
 
 	// init chunk, attribs and pointers
-	chunk := newChunk(w.chunkShader, pos)
+	chunk := newChunk(w.chunkShader, w.atlas, pos)
 	w.chunks.Set(pos, chunk)
 	chunk.Init(i, j, k)
 	chunk.Buffer()
@@ -142,7 +149,7 @@ func (w *World) FloorUnder(p mgl32.Vec3) *Block {
 	return floor
 }
 
-// Returns (-1, 0, 1, 2) for both X and Z to which represents if a wall is present.
+// Returns a list of boxes surrounding the provided position
 func (w *World) WallsNextTo(p mgl32.Vec3) []*Block {
 	// get colliders
 	walls := []*Block{

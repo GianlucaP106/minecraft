@@ -1,28 +1,41 @@
 package app
 
 import (
-	"fmt"
 	"image"
 	"image/draw"
 	_ "image/png"
 	"os"
+	"path/filepath"
 
 	"github.com/go-gl/gl/v4.1-core/gl"
 )
 
-func newTexture(file string) (uint32, error) {
+type TextureManager struct {
+	textures map[string]*Texture
+	rootPath string
+}
+
+func newTextureManager(rootPath string) *TextureManager {
+	tm := &TextureManager{}
+	tm.rootPath = rootPath
+	tm.textures = make(map[string]*Texture)
+	return tm
+}
+
+func (t *TextureManager) CreateTexture(name string) *Texture {
+	file := filepath.Join(t.rootPath, name)
 	imgFile, err := os.Open(file)
 	if err != nil {
-		return 0, fmt.Errorf("texture %q not found on disk: %v", file, err)
+		panic(err)
 	}
 	img, _, err := image.Decode(imgFile)
 	if err != nil {
-		return 0, err
+		panic(err)
 	}
 
 	rgba := image.NewRGBA(img.Bounds())
 	if rgba.Stride != rgba.Rect.Size().X*4 {
-		return 0, fmt.Errorf("unsupported stride")
+		panic("unsuported stride")
 	}
 	draw.Draw(rgba, rgba.Bounds(), img, image.Point{0, 0}, draw.Src)
 
@@ -45,5 +58,15 @@ func newTexture(file string) (uint32, error) {
 		gl.UNSIGNED_BYTE,
 		gl.Ptr(rgba.Pix))
 
-	return texture, nil
+	tex := &Texture{
+		handle: texture,
+		img:    rgba,
+	}
+	t.textures[name] = tex
+	return tex
+}
+
+type Texture struct {
+	img    *image.RGBA
+	handle uint32
 }

@@ -1,8 +1,6 @@
 package app
 
 import (
-	"math"
-
 	"github.com/go-gl/mathgl/mgl32"
 )
 
@@ -21,7 +19,7 @@ func newBox(min, max mgl32.Vec3) Box {
 }
 
 // Measures and returns the distance between the box and a given position.
-func (b *Box) Distance(pos mgl32.Vec3) float32 {
+func (b Box) Distance(pos mgl32.Vec3) float32 {
 	min := b.min
 	max := b.max
 
@@ -57,7 +55,7 @@ func (b *Box) Distance(pos mgl32.Vec3) float32 {
 }
 
 // Returns true of the boxes intersect.
-func (b *Box) Intersection(b2 Box) (bool, mgl32.Vec3) {
+func (b Box) Intersection(b2 Box) (bool, mgl32.Vec3) {
 	if !(b.min.X() <= b2.max.X() &&
 		b.max.X() >= b2.min.X() &&
 		b.min.Z() <= b2.max.Z() &&
@@ -71,8 +69,8 @@ func (b *Box) Intersection(b2 Box) (bool, mgl32.Vec3) {
 	overlapZ1 := b.max.Z() - b2.min.Z()
 	overlapZ2 := b2.max.Z() - b.min.Z()
 
-	depthX := float32(math.Min(float64(overlapX1), float64(overlapX2)))
-	depthZ := float32(math.Min(float64(overlapZ1), float64(overlapZ2)))
+	depthX := min(overlapX1, overlapX2)
+	depthZ := min(overlapZ1, overlapZ2)
 
 	var penetration mgl32.Vec3
 	if depthX < depthZ {
@@ -84,50 +82,10 @@ func (b *Box) Intersection(b2 Box) (bool, mgl32.Vec3) {
 	return true, penetration
 }
 
-type Direction uint
-
-const (
-	north Direction = iota // -z
-	south                  // +z
-	down                   // -y
-	up                     // +y
-	west                   // -x
-	east                   // +x
-	none                   // not calculated
-)
-
-var directions []mgl32.Vec3 = []mgl32.Vec3{
-	// north
-	{0, 0, -1},
-
-	// south
-	{0, 0, 1},
-
-	// down
-	{0, -1, 0},
-
-	// up
-	{0, 1, 0},
-
-	// west
-	{-1, 0, 0},
-
-	// east
-	{1, 0, 0},
-}
-
-// Returns a new boxface with the maching direction.
-func newDirection(p mgl32.Vec3) Direction {
-	for i, v := range directions {
-		if v == p {
-			return Direction(i)
-		}
+// Combines 2 boxes into 1 by comparing along Y.
+func (b Box) CombineY(b2 Box) Box {
+	if b.min.Y() < b2.min.Y() {
+		return newBox(b.min, b2.max)
 	}
-
-	return none
-}
-
-func (f Direction) Direction() mgl32.Vec3 {
-	new := directions[f]
-	return new
+	return newBox(b2.min, b.max)
 }

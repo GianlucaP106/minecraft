@@ -7,13 +7,13 @@ import (
 
 // Crosshair displays marker on the screen for player.
 type Crosshair struct {
+	shader    *Shader
 	vao       uint32
 	vbo       uint32
-	shader    uint32
 	vertCount int
 }
 
-func newCrosshair(shader uint32) *Crosshair {
+func newCrosshair(shader *Shader) *Crosshair {
 	ch := &Crosshair{
 		shader: shader,
 	}
@@ -22,7 +22,7 @@ func newCrosshair(shader uint32) *Crosshair {
 
 // Initialize the crosshair metadata on the GPU.
 func (c *Crosshair) Init() {
-	gl.UseProgram(c.shader)
+	gl.UseProgram(c.shader.handle)
 
 	gl.GenVertexArrays(1, &c.vao)
 	gl.BindVertexArray(c.vao)
@@ -30,11 +30,11 @@ func (c *Crosshair) Init() {
 	gl.BindBuffer(gl.ARRAY_BUFFER, c.vbo)
 
 	// configure the attributes
-	vertAttrib := uint32(gl.GetAttribLocation(c.shader, gl.Str("vert\x00")))
+	vertAttrib := uint32(gl.GetAttribLocation(c.shader.handle, gl.Str("vert\x00")))
 	gl.EnableVertexAttribArray(vertAttrib)
 	gl.VertexAttribPointerWithOffset(vertAttrib, 3, gl.FLOAT, false, 6*4, 0)
 
-	colorAtrrib := uint32(gl.GetAttribLocation(c.shader, gl.Str("color\x00")))
+	colorAtrrib := uint32(gl.GetAttribLocation(c.shader.handle, gl.Str("color\x00")))
 	gl.EnableVertexAttribArray(colorAtrrib)
 	gl.VertexAttribPointerWithOffset(colorAtrrib, 3, gl.FLOAT, false, 6*4, 3*4)
 
@@ -68,11 +68,11 @@ func (c *Crosshair) Buffer() {
 // Draws the crosshair on the screen.
 // Does not apply view or model transformations because it is not world positioned.
 func (c *Crosshair) Draw() {
-	gl.UseProgram(c.shader)
+	gl.UseProgram(c.shader.handle)
 	gl.BindVertexArray(c.vao)
 
 	model := mgl32.Ident4()
-	modelUniform := gl.GetUniformLocation(c.shader, gl.Str("model\x00"))
+	modelUniform := gl.GetUniformLocation(c.shader.handle, gl.Str("model\x00"))
 	gl.UniformMatrix4fv(modelUniform, 1, false, &model[0])
 
 	gl.DrawArrays(gl.LINES, 0, int32(c.vertCount))

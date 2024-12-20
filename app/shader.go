@@ -13,14 +13,14 @@ import (
 
 // ShaderManager manages references to shader programs.
 type ShaderManager struct {
-	shaders  map[string]uint32
+	shaders  map[string]*Shader
 	rootPath string
 }
 
 func newShaderManager(root string) *ShaderManager {
 	s := &ShaderManager{}
 	s.rootPath = root
-	s.shaders = make(map[string]uint32)
+	s.shaders = make(map[string]*Shader)
 	s.init()
 	return s
 }
@@ -62,12 +62,16 @@ func (s *ShaderManager) init() {
 		vsrc := string(vb) + "\x00"
 		fsrc := string(fb) + "\x00"
 		program := s.createProgram(vsrc, fsrc)
-		s.shaders[name] = program
+		sh := &Shader{
+			name:   name,
+			handle: program,
+		}
+		s.shaders[name] = sh
 	}
 }
 
 // Returns a stored reference to a program.
-func (s *ShaderManager) Program(name string) uint32 {
+func (s *ShaderManager) Program(name string) *Shader {
 	e, w := s.shaders[name]
 	if !w {
 		log.Panic("invalid shader: ", name)
@@ -133,4 +137,9 @@ func (s *ShaderManager) compile(source string, shaderType uint32) (uint32, error
 	}
 
 	return shader, nil
+}
+
+type Shader struct {
+	name   string
+	handle uint32
 }

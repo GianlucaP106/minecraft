@@ -7,6 +7,11 @@ import (
 
 // Chunk is a chunk of blocks for purposed of rendering.
 type Chunk struct {
+	atlas *TextureAtlas
+
+	// shader program
+	shader *Shader
+
 	// blocks in the chunk, position determined by index in array
 	blocks [chunkSize][chunkSize][chunkSize]*Block
 
@@ -18,28 +23,30 @@ type Chunk struct {
 
 	// gpu buffers
 	vao, vbo uint32
-
-	// shader program
-	shader uint32
 }
 
 const chunkSize = 16
 
-func newChunk(shader uint32, initialPos mgl32.Vec3) *Chunk {
+func newChunk(shader *Shader, atlas *TextureAtlas, initialPos mgl32.Vec3) *Chunk {
 	c := &Chunk{}
 	c.shader = shader
 	c.pos = initialPos
+	c.atlas = atlas
 	return c
 }
 
 // Initialize the chunk metadata on the GPU.
 // Sets the given block to be active as the first block.
 func (c *Chunk) Init(i, j, k int) {
-	gl.UseProgram(c.shader)
+	gl.UseProgram(c.shader.handle)
 	for i2 := 0; i2 < chunkSize; i2++ {
 		for j2 := 0; j2 < chunkSize; j2++ {
 			for k2 := 0; k2 < chunkSize; k2++ {
-				b := newBlock(c, i2, j2, k2)
+				t := "bedrock"
+				if k2%2 == 0 {
+					t = "cobblestone"
+				}
+				b := newBlock(c, i2, j2, k2, t)
 				c.blocks[i2][j2][k2] = b
 				if i == i2 && j == j2 && k == k2 {
 					b.active = true
@@ -57,13 +64,16 @@ func (c *Chunk) Init(i, j, k int) {
 	gl.BindBuffer(gl.ARRAY_BUFFER, c.vbo)
 
 	// configure the attributes
-	vertAttrib := uint32(gl.GetAttribLocation(c.shader, gl.Str("vert\x00")))
+	vertAttrib := uint32(gl.GetAttribLocation(c.shader.handle, gl.Str("vert\x00")))
 	gl.EnableVertexAttribArray(vertAttrib)
-	gl.VertexAttribPointerWithOffset(vertAttrib, 3, gl.FLOAT, false, 6*4, 0)
+	gl.VertexAttribPointerWithOffset(vertAttrib, 3, gl.FLOAT, false, 5*4, 0)
 
-	colorAtrrib := uint32(gl.GetAttribLocation(c.shader, gl.Str("color\x00")))
-	gl.EnableVertexAttribArray(colorAtrrib)
-	gl.VertexAttribPointerWithOffset(colorAtrrib, 3, gl.FLOAT, false, 6*4, 3*4)
+	texAttrib := uint32(gl.GetAttribLocation(c.shader.handle, gl.Str("texCoord\x00")))
+	gl.EnableVertexAttribArray(texAttrib)
+	gl.VertexAttribPointerWithOffset(texAttrib, 2, gl.FLOAT, false, 5*4, 3*4)
+
+	textureUniform := gl.GetUniformLocation(c.shader.handle, gl.Str("tex\x00"))
+	gl.Uniform1i(textureUniform, 0)
 }
 
 // Sends the chunks vertices to GPU.
@@ -109,7 +119,9 @@ func (c *Chunk) Buffer() {
 
 				// translate vertices to respective pos in chunk
 				translate := block.Translate()
-				for _, vert := range block.Vertices(excludeFaces) {
+				verts, texCoords := block.Vertices(excludeFaces)
+				for idx, vert := range verts {
+					coords := texCoords[idx]
 					c.vertCount++
 
 					pos := translate.Mul4x1(vert.Vec4(1))
@@ -119,8 +131,8 @@ func (c *Chunk) Buffer() {
 						// pos
 						pos.X(), pos.Y(), pos.Z(),
 
-						// color
-						block.color.X(), block.color.Y(), block.color.Z(),
+						// texture
+						coords.X(), coords.Y(),
 					)
 				}
 			}
@@ -136,23 +148,23 @@ func (c *Chunk) Buffer() {
 // Draws the chunk from the perspective of the provided camera.
 // Sets the "lookedAtBlock" to be the provided target block.
 func (c *Chunk) Draw(target *TargetBlock, view mgl32.Mat4) {
-	gl.UseProgram(c.shader)
+	gl.UseProgram(c.shader.handle)
 	gl.BindVertexArray(c.vao)
 
 	// build model without view (model translates to world position)
 	model := mgl32.Translate3D(c.pos.X(), c.pos.Y(), c.pos.Z())
 
 	// attach model to uniform
-	modelUniform := gl.GetUniformLocation(c.shader, gl.Str("model\x00"))
+	modelUniform := gl.GetUniformLocation(c.shader.handle, gl.Str("model\x00"))
 	gl.UniformMatrix4fv(modelUniform, 1, false, &model[0])
 
 	// attach view to uniform
-	viewUniform := gl.GetUniformLocation(c.shader, gl.Str("view\x00"))
+	viewUniform := gl.GetUniformLocation(c.shader.handle, gl.Str("view\x00"))
 	gl.UniformMatrix4fv(viewUniform, 1, false, &view[0])
 
 	// attach lookedAtBlock which determines which block is being locked at in the chunk
 	isLooking := 0
-	lookedAtBlockUniform := gl.GetUniformLocation(c.shader, gl.Str("lookedAtBlock\x00"))
+	lookedAtBlockUniform := gl.GetUniformLocation(c.shader.handle, gl.Str("lookedAtBlock\x00"))
 	if target != nil {
 		isLooking = 1
 		pos := target.block.WorldPos()
@@ -160,8 +172,11 @@ func (c *Chunk) Draw(target *TargetBlock, view mgl32.Mat4) {
 	}
 
 	// flag indicates if the entire chunk is being looked at
-	isLookingUniform := gl.GetUniformLocation(c.shader, gl.Str("isLooking\x00"))
+	isLookingUniform := gl.GetUniformLocation(c.shader.handle, gl.Str("isLooking\x00"))
 	gl.Uniform1i(isLookingUniform, int32(isLooking))
+
+	gl.ActiveTexture(gl.TEXTURE0)
+	gl.BindTexture(gl.TEXTURE_2D, c.atlas.texture.handle)
 
 	// final draw call for chunk
 	gl.DrawArrays(gl.TRIANGLES, 0, int32(c.vertCount))

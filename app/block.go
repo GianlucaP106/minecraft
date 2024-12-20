@@ -1,59 +1,101 @@
 package app
 
 import (
-	"math/rand"
-
 	"github.com/go-gl/mathgl/mgl32"
 )
 
 // Block represents a single block in the world.
 // A block is part of a chunk.
 type Block struct {
-	// chunk that this block belongs to
 	chunk *Chunk
+
+	blockType string
 
 	// relative postion of the block in the chunk
 	i, j, k int
 
 	// if the block is physically active
 	active bool
-
-	// TODO:
-	color mgl32.Vec3
 }
 
 const blockSize = 1
 
-func newBlock(chunk *Chunk, i, j, k int) *Block {
+func newBlock(chunk *Chunk, i, j, k int, blockType string) *Block {
 	b := &Block{}
 	b.i, b.j, b.k = i, j, k
 	b.chunk = chunk
 	b.active = false
-	b.color = mgl32.Vec3{
-		rand.Float32(),
-		rand.Float32(),
-		rand.Float32(),
-	}
+	b.blockType = blockType
 	return b
 }
 
-// Returns the vertices of the block centered at origin.
-// Returns only the vertices for the passed faces
-func (b *Block) Vertices(excludeFaces [6]bool) []mgl32.Vec3 {
-	out := make([]mgl32.Vec3, 0)
-	for face, v := range cubeVertexPositions {
-		if excludeFaces[face] {
-			continue
-		}
-		for _, v2 := range v {
-
-			// scale by half
-			newVec := v2.Mul(0.5)
-			out = append(out, newVec)
-		}
+func (b *Block) Vertices(excludeFaces [6]bool) ([]mgl32.Vec3, []mgl32.Vec2) {
+	type Vertex struct {
+		pos mgl32.Vec3
+		tex mgl32.Vec2
 	}
 
-	return out
+	texs := blocks[b.blockType]
+	getQuadVertices := func(direction Direction) [6]Vertex {
+		tex := texs[direction]
+		umin, umax, vmin, vmax := b.chunk.atlas.Coords(tex[0], tex[1])
+		// base quad in the XY plane, centered at the origin
+		quad := [6]Vertex{
+			{mgl32.Vec3{-1.0, -1.0, 0.0}, mgl32.Vec2{umin, vmin}}, // Bottom-left
+			{mgl32.Vec3{1.0, -1.0, 0.0}, mgl32.Vec2{umax, vmin}},  // Bottom-right
+			{mgl32.Vec3{-1.0, 1.0, 0.0}, mgl32.Vec2{umin, vmax}},  // Top-left
+			{mgl32.Vec3{1.0, -1.0, 0.0}, mgl32.Vec2{umax, vmin}},  // Bottom-right
+			{mgl32.Vec3{1.0, 1.0, 0.0}, mgl32.Vec2{umax, vmax}},   // Top-right
+			{mgl32.Vec3{-1.0, 1.0, 0.0}, mgl32.Vec2{umin, vmax}},  // Top-left
+		}
+
+		// transformation based on direction
+		switch direction {
+		case north: // -z
+			for i := range quad {
+				quad[i].pos = mgl32.Vec3{quad[i].pos[0], quad[i].pos[1], -1.0}
+			}
+		case south: // +z
+			for i := range quad {
+				quad[i].pos = mgl32.Vec3{quad[i].pos[0], quad[i].pos[1], 1.0}
+			}
+		case down: // -y
+			for i := range quad {
+				quad[i].pos = mgl32.Vec3{quad[i].pos[0], -1.0, quad[i].pos[1]}
+			}
+		case up: // +y
+			for i := range quad {
+				quad[i].pos = mgl32.Vec3{quad[i].pos[0], 1.0, quad[i].pos[1]}
+			}
+		case west: // -x
+			for i := range quad {
+				quad[i].pos = mgl32.Vec3{-1.0, quad[i].pos[1], quad[i].pos[0]}
+			}
+		case east: // +x
+			for i := range quad {
+				quad[i].pos = mgl32.Vec3{1.0, quad[i].pos[1], quad[i].pos[0]}
+			}
+		}
+
+		return quad
+	}
+
+	verts := make([]mgl32.Vec3, 0)
+	texCoords := make([]mgl32.Vec2, 0)
+	for i := range directions {
+		if excludeFaces[i] {
+			continue
+		}
+
+		dir := Direction(i)
+		faceVertices := getQuadVertices(dir)
+
+		for _, face := range faceVertices {
+			texCoords = append(texCoords, face.tex)
+			verts = append(verts, face.pos.Mul(0.5))
+		}
+	}
+	return verts, texCoords
 }
 
 // Returns the world position of the block.
@@ -94,67 +136,4 @@ type TargetBlock struct {
 
 	// the side that is being looked at
 	face Direction
-}
-
-// geometry for a cube centered at the origin with size 2
-var cubeVertexPositions = [][]mgl32.Vec3{
-	// north
-	{
-		{-1.0, -1.0, -1.0},
-		{-1.0, 1.0, -1.0},
-		{1.0, -1.0, -1.0},
-		{1.0, -1.0, -1.0},
-		{-1.0, 1.0, -1.0},
-		{1.0, 1.0, -1.0},
-	},
-
-	// south
-	{
-		{-1.0, -1.0, 1.0},
-		{1.0, -1.0, 1.0},
-		{-1.0, 1.0, 1.0},
-		{1.0, -1.0, 1.0},
-		{1.0, 1.0, 1.0},
-		{-1.0, 1.0, 1.0},
-	},
-
-	// down
-	{
-		{-1.0, -1.0, -1.0},
-		{1.0, -1.0, -1.0},
-		{-1.0, -1.0, 1.0},
-		{1.0, -1.0, -1.0},
-		{1.0, -1.0, 1.0},
-		{-1.0, -1.0, 1.0},
-	},
-
-	// up
-	{
-		{-1.0, 1.0, -1.0},
-		{-1.0, 1.0, 1.0},
-		{1.0, 1.0, -1.0},
-		{1.0, 1.0, -1.0},
-		{-1.0, 1.0, 1.0},
-		{1.0, 1.0, 1.0},
-	},
-
-	// west
-	{
-		{-1.0, -1.0, 1.0},
-		{-1.0, 1.0, -1.0},
-		{-1.0, -1.0, -1.0},
-		{-1.0, -1.0, 1.0},
-		{-1.0, 1.0, 1.0},
-		{-1.0, 1.0, -1.0},
-	},
-
-	// east
-	{
-		{1.0, -1.0, 1.0},
-		{1.0, -1.0, -1.0},
-		{1.0, 1.0, -1.0},
-		{1.0, -1.0, 1.0},
-		{1.0, 1.0, -1.0},
-		{1.0, 1.0, 1.0},
-	},
 }

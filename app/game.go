@@ -11,14 +11,13 @@ type Game struct {
 	// main window
 	window *Window
 
-	// shader program manager
-	shaders *ShaderManager
+	// resource and shader managers
+	shaders  *ShaderManager
+	textures *TextureManager
 
-	// single player in the game
+	// game entities
 	player *Player
-
-	// contains all the chunks and blocks
-	world *World
+	world  *World
 
 	// block the player is currently looking at
 	target *TargetBlock
@@ -44,8 +43,10 @@ func (g *Game) Init() {
 	gl.Enable(gl.DEPTH_TEST)
 	gl.ClearColor(1.0, 1.0, 1.0, 1.0)
 
-	// init shader program manager and add shaders
+	// init resource managers and create resources
 	g.shaders = newShaderManager("./shaders")
+	g.textures = newTextureManager("./assets")
+	atlas := newTextureAtlas(g.textures.CreateTexture("atlas.png"))
 
 	g.physics = newPhysicsEngine()
 	g.player = newPlayer()
@@ -55,7 +56,7 @@ func (g *Game) Init() {
 	g.crosshair.Init()
 
 	// init world
-	g.world = newWorld(g.shaders.Program("chunk"))
+	g.world = newWorld(g.shaders.Program("chunk"), atlas)
 	g.world.SpawnPlatform()
 
 	// init the clock which computes delta for time based computations
@@ -125,16 +126,35 @@ func (g *Game) LookBlock() {
 }
 
 // Sets the colliders surrounding the player (walls).
-// TODO: handle floor collision and "double" walls
+// TODO: handle floor collision
 func (g *Game) SetColliders() {
-	walls := g.world.WallsNextTo(g.player.body.position)
-	walls = append(walls, g.world.WallsNextTo(g.player.body.position.Add(mgl32.Vec3{0, 0.5, 0}))...)
 	g.physics.colliders = make([]*Box, 0)
+	wall := func(x, z float32) {
+		wall1 := g.world.WallNextTo(g.player.body.position, x, z)
+		wall2 := g.world.WallNextTo(g.player.body.position.Add(mgl32.Vec3{0, 0.5, 0}), x, z)
+		var box *Box
+		if wall1 != nil && wall1.active {
+			b := wall1.Box()
+			box = &b
+		}
+		if wall2 != nil && wall2.active {
+			if box != nil {
+				b := box.CombineY(wall2.Box())
+				box = &b
+			} else {
+				b := wall2.Box()
+				box = &b
+			}
+		}
 
-	for _, b := range walls {
-		box := b.Box()
-		g.physics.colliders = append(g.physics.colliders, &box)
+		if box != nil {
+			g.physics.colliders = append(g.physics.colliders, box)
+		}
 	}
+	wall(-0.5, 0)
+	wall(0.5, 0)
+	wall(0, -0.5)
+	wall(0, 0.5)
 
 	g.player.body.collider = &Box{
 		min: g.player.body.position.Sub(mgl32.Vec3{playerWidth / 2, playerHeight, playerWidth / 2}),

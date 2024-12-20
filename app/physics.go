@@ -12,7 +12,7 @@ type PhysicsEngine struct {
 }
 
 const (
-	jumpForce = 275
+	jumpForce = 300
 	gravity   = 9.8
 )
 
@@ -98,4 +98,5 @@ func (r *RigidBody) Move(movement mgl32.Vec3, grounded, fly bool) {
 // Simulates a jump on the body by exerting a force upward of jumpForce * body.mass
 func (r *RigidBody) Jump() {
 	r.force = r.force.Add(mgl32.Vec3{0, r.mass * jumpForce, 0})
+	r.grounded = false
 }
