@@ -149,43 +149,13 @@ func (w *World) FloorUnder(p mgl32.Vec3) *Block {
 	return floor
 }
 
-// Returns a list of boxes surrounding the provided position
-func (w *World) WallsNextTo(p mgl32.Vec3) []*Block {
-	// get colliders
-	walls := []*Block{
-		w.WallNextTo(p, -0.5, 0),
-		w.WallNextTo(p, 0.5, 0),
-		w.WallNextTo(p, 0, -0.5),
-		w.WallNextTo(p, 0, 0.5),
-	}
-	out := make([]*Block, 0)
-	for _, b := range walls {
-		if b != nil && b.active {
-			out = append(out, b)
-		}
-	}
-	return out
-}
-
 // Returns the wall next to the given postion if there is.
 // Pass distances for x and z to detect that respecive wall.
 func (w *World) WallNextTo(p mgl32.Vec3, x, z float32) *Block {
-	p2 := p
-
 	p[0] += float32(x)
-	p[1] -= playerHeight / 2
 	p[2] += float32(z)
 	wall := w.Block(p)
-
-	p2[0] += float32(x)
-	p2[2] += float32(z)
-	wall2 := w.Block(p2)
-
-	if wall != nil {
-		return wall
-	}
-
-	return wall2
+	return wall
 }
 
 // Returns the block at the given position.

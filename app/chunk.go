@@ -42,7 +42,7 @@ func (c *Chunk) Init(i, j, k int) {
 	for i2 := 0; i2 < chunkSize; i2++ {
 		for j2 := 0; j2 < chunkSize; j2++ {
 			for k2 := 0; k2 < chunkSize; k2++ {
-				t := "bedrock"
+				t := "earth"
 				if k2%2 == 0 {
 					t = "cobblestone"
 				}

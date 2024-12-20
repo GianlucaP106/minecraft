@@ -44,7 +44,7 @@ func (p *Player) Ray() Ray {
 }
 
 // Move player.
-func (p *Player) Move(forward, right float32, grounded bool) {
+func (p *Player) Move(forward, right float32, ground *Box) {
 	// combine movement into vector and normalize
 	movement := p.camera.view.Mul(forward).Add(p.camera.cross().Mul(right))
 	if movement.Len() > 0 {
@@ -52,5 +52,5 @@ func (p *Player) Move(forward, right float32, grounded bool) {
 	}
 
 	movement = movement.Mul(playerSpeed)
-	p.body.Move(movement, grounded, false)
+	p.body.Move(movement, ground, false)
 }

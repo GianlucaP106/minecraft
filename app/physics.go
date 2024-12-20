@@ -43,14 +43,13 @@ func (p *PhysicsEngine) Remove(body *RigidBody) {
 
 func (p *PhysicsEngine) update(body *RigidBody, delta float64) {
 	// handle gravity
-	if body.grounded {
-		// if grounded set y velocity to 0
-		body.velocity[1] = 0
-	} else {
+	if !body.grounded {
 		body.force = body.force.Add(mgl32.Vec3{0, body.mass * -gravity, 0})
 	}
 
 	// handle collisions with this rigid body
+	// since blocks are immovable (infinite mass)
+	// we dont add forces, but simply adjust position
 	if body.collider != nil {
 		box := body.collider
 		for _, c := range p.colliders {
@@ -83,8 +82,13 @@ type RigidBody struct {
 }
 
 // Moves a rigid body using direct velocity.
-func (r *RigidBody) Move(movement mgl32.Vec3, grounded, fly bool) {
-	r.grounded = grounded
+func (r *RigidBody) Move(movement mgl32.Vec3, ground *Box, fly bool) {
+	if ground != nil {
+		r.grounded = true
+		r.velocity[1] = 0
+	} else {
+		r.grounded = false
+	}
 
 	// if in the air we can suppress movement
 	if !r.grounded {

@@ -41,12 +41,12 @@ func (b *Block) Vertices(excludeFaces [6]bool) ([]mgl32.Vec3, []mgl32.Vec2) {
 		umin, umax, vmin, vmax := b.chunk.atlas.Coords(tex[0], tex[1])
 		// base quad in the XY plane, centered at the origin
 		quad := [6]Vertex{
-			{mgl32.Vec3{-1.0, -1.0, 0.0}, mgl32.Vec2{umin, vmin}}, // Bottom-left
-			{mgl32.Vec3{1.0, -1.0, 0.0}, mgl32.Vec2{umax, vmin}},  // Bottom-right
-			{mgl32.Vec3{-1.0, 1.0, 0.0}, mgl32.Vec2{umin, vmax}},  // Top-left
-			{mgl32.Vec3{1.0, -1.0, 0.0}, mgl32.Vec2{umax, vmin}},  // Bottom-right
-			{mgl32.Vec3{1.0, 1.0, 0.0}, mgl32.Vec2{umax, vmax}},   // Top-right
-			{mgl32.Vec3{-1.0, 1.0, 0.0}, mgl32.Vec2{umin, vmax}},  // Top-left
+			{mgl32.Vec3{-1.0, -1.0, 0.0}, mgl32.Vec2{umin, vmax}}, // Bottom-left
+			{mgl32.Vec3{1.0, -1.0, 0.0}, mgl32.Vec2{umax, vmax}},  // Bottom-right
+			{mgl32.Vec3{-1.0, 1.0, 0.0}, mgl32.Vec2{umin, vmin}},  // Top-left
+			{mgl32.Vec3{1.0, -1.0, 0.0}, mgl32.Vec2{umax, vmax}},  // Bottom-right
+			{mgl32.Vec3{1.0, 1.0, 0.0}, mgl32.Vec2{umax, vmin}},   // Top-right
+			{mgl32.Vec3{-1.0, 1.0, 0.0}, mgl32.Vec2{umin, vmin}},  // Top-left
 		}
 
 		// transformation based on direction

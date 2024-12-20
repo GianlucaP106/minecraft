@@ -76,8 +76,6 @@ func (g *Game) Run() {
 		// clear buffers
 		gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
 
-		delta := g.clock.Delta()
-
 		// set colliders close by
 		g.SetColliders()
 
@@ -86,6 +84,7 @@ func (g *Game) Run() {
 		g.HandleJump()
 		g.LookBlock()
 
+		delta := g.clock.Delta()
 		g.physics.Tick(delta)
 
 		for _, c := range g.world.NearChunks() {
@@ -126,12 +125,11 @@ func (g *Game) LookBlock() {
 }
 
 // Sets the colliders surrounding the player (walls).
-// TODO: handle floor collision
 func (g *Game) SetColliders() {
 	g.physics.colliders = make([]*Box, 0)
 	wall := func(x, z float32) {
 		wall1 := g.world.WallNextTo(g.player.body.position, x, z)
-		wall2 := g.world.WallNextTo(g.player.body.position.Add(mgl32.Vec3{0, 0.5, 0}), x, z)
+		wall2 := g.world.WallNextTo(g.player.body.position.Sub(mgl32.Vec3{0, playerHeight / 2, 0}), x, z)
 		var box *Box
 		if wall1 != nil && wall1.active {
 			b := wall1.Box()
@@ -155,6 +153,13 @@ func (g *Game) SetColliders() {
 	wall(0.5, 0)
 	wall(0, -0.5)
 	wall(0, 0.5)
+
+	// TODO: handle floor collision
+	// floor := g.world.FloorUnder(g.player.body.position)
+	// if floor != nil {
+	// 	b := floor.Box()
+	// 	g.physics.colliders = append(g.physics.colliders, &b)
+	// }
 
 	g.player.body.collider = &Box{
 		min: g.player.body.position.Sub(mgl32.Vec3{playerWidth / 2, playerHeight, playerWidth / 2}),
@@ -190,7 +195,12 @@ func (g *Game) HandleMovePlayer() {
 		forwardMove--
 	}
 
-	g.player.Move(forwardMove, rightMove, floor != nil && floor.active)
+	var floorBox *Box
+	if floor != nil && floor.active {
+		t := floor.Box()
+		floorBox = &t
+	}
+	g.player.Move(forwardMove, rightMove, floorBox)
 }
 
 // Sets a key callback function to handle mouse movement.
