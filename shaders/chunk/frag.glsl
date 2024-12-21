@@ -3,14 +3,13 @@
 uniform sampler2D tex;
 
 in vec2 fragTexCoord;
-flat in int selected;
+in vec2 selected;
 
 out vec4 color;
 
 void main() {
     color = texture(tex, fragTexCoord);
-    color = texture(tex, fragTexCoord);
-    if (selected == 1) {
+    if (selected.x == 1.0) {
         color = color * 0.6;
     }
 }

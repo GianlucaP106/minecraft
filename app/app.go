@@ -1,6 +1,8 @@
 package app
 
-import "log"
+import (
+	"log"
+)
 
 func Start() {
 	log.Println("Starting game...")

@@ -8,12 +8,12 @@ import (
 // The Tick method advances the simulation and computes acceleration, velocity and posistion from applied forces.
 type PhysicsEngine struct {
 	registrations map[*RigidBody]bool
-	colliders     []*Box
 }
 
 const (
-	jumpForce = 300
-	gravity   = 9.8
+	jumpSpeed          = 5
+	gravity            = 9.8
+	penetrationEpsilon = 0.05
 )
 
 func newPhysicsEngine() *PhysicsEngine {
@@ -43,23 +43,8 @@ func (p *PhysicsEngine) Remove(body *RigidBody) {
 
 func (p *PhysicsEngine) update(body *RigidBody, delta float64) {
 	// handle gravity
-	if !body.grounded {
+	if !body.grounded && !body.flying {
 		body.force = body.force.Add(mgl32.Vec3{0, body.mass * -gravity, 0})
-	}
-
-	// handle collisions with this rigid body
-	// since blocks are immovable (infinite mass)
-	// we dont add forces, but simply adjust position
-	if body.collider != nil {
-		box := body.collider
-		for _, c := range p.colliders {
-			b, penetration := box.Intersection(*c)
-			if b {
-				// adjust position of rb by moving back the same as the pentration
-				// if there was a collision
-				body.position = body.position.Sub(penetration)
-			}
-		}
 	}
 
 	// compute and set acceleration, velocity and posistion
@@ -77,16 +62,27 @@ type RigidBody struct {
 	position mgl32.Vec3
 	velocity mgl32.Vec3
 	force    mgl32.Vec3
+	flying   bool
 	mass     float32
 	grounded bool
 }
 
 // Moves a rigid body using direct velocity.
-func (r *RigidBody) Move(movement mgl32.Vec3, ground *Box, fly bool) {
-	if ground != nil {
+// Takes an optional ground and walls will get computed as colliders.
+func (r *RigidBody) Move(movement mgl32.Vec3, ground *Box, walls []Box) {
+	if ground != nil && !r.grounded {
+		// set grounded only the first time (when in contact)
 		r.grounded = true
 		r.velocity[1] = 0
-	} else {
+		if r.collider != nil {
+			// compute collision with ground and translate body up
+			b, depth := ground.IntersectionY(*r.collider)
+			if b {
+				r.position = r.position.Add(mgl32.Vec3{0, depth, 0})
+			}
+		}
+
+	} else if ground == nil {
 		r.grounded = false
 	}
 
@@ -95,12 +91,40 @@ func (r *RigidBody) Move(movement mgl32.Vec3, ground *Box, fly bool) {
 		movement = movement.Mul(0.7)
 	}
 
-	// set the movement exactly (no addition) for x,z but keep y for gravity
-	r.velocity = mgl32.Vec3{movement.X(), r.velocity.Y(), movement.Z()}
+	if r.collider != nil {
+		for _, c := range walls {
+			b, penetration := r.collider.IntersectionXZ(c)
+			if !b {
+				continue
+			}
+
+			if penetration.Len() <= penetrationEpsilon {
+				// make movement 0 if penetration is small and dont adjust position
+				for i := 0; i < 3; i++ {
+					if mgl32.Abs(penetration[i]) > 0.0 && sign(movement[i]) == sign(penetration[i]) {
+						// if the movement alignes with the penetration, 0-out that component of the movement
+						movement[i] = 0
+					}
+				}
+			} else {
+				// adjust position of rb by moving back the same as the pentration
+				r.position = r.position.Sub(penetration)
+			}
+		}
+	}
+
+	// set the movement exactly (no addition) for x,z but keep y for gravity (if no flying)
+	var yComponent float32
+	if r.flying {
+		yComponent = movement.Y()
+	} else {
+		yComponent = r.velocity.Y()
+	}
+	r.velocity = mgl32.Vec3{movement.X(), yComponent, movement.Z()}
 }
 
 // Simulates a jump on the body by exerting a force upward of jumpForce * body.mass
 func (r *RigidBody) Jump() {
-	r.force = r.force.Add(mgl32.Vec3{0, r.mass * jumpForce, 0})
+	r.velocity = r.velocity.Add(mgl32.Vec3{0, jumpSpeed, 0})
 	r.grounded = false
 }

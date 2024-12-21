@@ -3,7 +3,6 @@ package app
 import (
 	"github.com/go-gl/gl/v4.1-core/gl"
 	"github.com/go-gl/glfw/v3.3/glfw"
-	"github.com/go-gl/mathgl/mgl32"
 )
 
 // Root app instance.
@@ -34,6 +33,8 @@ type Game struct {
 	jumpDebounce bool
 }
 
+const floorCollisionEpsilon = 0.01
+
 // Initializes the app. Executes before the game loop.
 func (g *Game) Init() {
 	// glfw window
@@ -48,16 +49,17 @@ func (g *Game) Init() {
 	g.textures = newTextureManager("./assets")
 	atlas := newTextureAtlas(g.textures.CreateTexture("atlas.png"))
 
-	g.physics = newPhysicsEngine()
 	g.player = newPlayer()
-	g.physics.Register(g.player.body)
+	g.player.inventory.Add("earth-grass", 10)
+	g.player.inventory.selected = "earth-grass"
+	// g.player.inventory.Add("earth-grass", 10)
 
-	g.crosshair = newCrosshair(g.shaders.Program("crosshair"))
-	g.crosshair.Init()
+	g.physics = newPhysicsEngine()
+	g.physics.Register(g.player.body)
 
 	// init world
 	g.world = newWorld(g.shaders.Program("chunk"), atlas)
-	g.world.SpawnPlatform()
+	g.world.Terrain()
 
 	// init the clock which computes delta for time based computations
 	g.clock = newClock()
@@ -65,6 +67,9 @@ func (g *Game) Init() {
 	// set key and mouse handlers
 	g.SetLookHandler()
 	g.SetMouseClickHandler()
+
+	g.crosshair = newCrosshair(g.shaders.Program("crosshair"))
+	g.crosshair.Init()
 }
 
 // Runs the game loop.
@@ -76,9 +81,6 @@ func (g *Game) Run() {
 		// clear buffers
 		gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
 
-		// set colliders close by
-		g.SetColliders()
-
 		// handle movements
 		g.HandleMovePlayer()
 		g.HandleJump()
@@ -87,7 +89,7 @@ func (g *Game) Run() {
 		delta := g.clock.Delta()
 		g.physics.Tick(delta)
 
-		for _, c := range g.world.NearChunks() {
+		for _, c := range g.world.NearChunks(g.player.body.position) {
 			var target *TargetBlock
 			if g.target != nil && g.target.block.chunk == c {
 				// if a block is being looked at in this chunk
@@ -103,133 +105,4 @@ func (g *Game) Run() {
 		g.window.SwapBuffers()
 		glfw.PollEvents()
 	}
-}
-
-// Looks for blocks from the perspective of player.
-// Will set the target block if currently looking at one.
-func (g *Game) LookBlock() {
-	ray := g.player.Ray()
-	b, face, hit := ray.March(func(p mgl32.Vec3) bool {
-		block := g.world.Block(p)
-		return block != nil && block.active
-	})
-	if b {
-		block := g.world.Block(hit)
-		g.target = &TargetBlock{
-			block: block,
-			face:  face,
-		}
-	} else {
-		g.target = nil
-	}
-}
-
-// Sets the colliders surrounding the player (walls).
-func (g *Game) SetColliders() {
-	g.physics.colliders = make([]*Box, 0)
-	wall := func(x, z float32) {
-		wall1 := g.world.WallNextTo(g.player.body.position, x, z)
-		wall2 := g.world.WallNextTo(g.player.body.position.Sub(mgl32.Vec3{0, playerHeight / 2, 0}), x, z)
-		var box *Box
-		if wall1 != nil && wall1.active {
-			b := wall1.Box()
-			box = &b
-		}
-		if wall2 != nil && wall2.active {
-			if box != nil {
-				b := box.CombineY(wall2.Box())
-				box = &b
-			} else {
-				b := wall2.Box()
-				box = &b
-			}
-		}
-
-		if box != nil {
-			g.physics.colliders = append(g.physics.colliders, box)
-		}
-	}
-	wall(-0.5, 0)
-	wall(0.5, 0)
-	wall(0, -0.5)
-	wall(0, 0.5)
-
-	// TODO: handle floor collision
-	// floor := g.world.FloorUnder(g.player.body.position)
-	// if floor != nil {
-	// 	b := floor.Box()
-	// 	g.physics.colliders = append(g.physics.colliders, &b)
-	// }
-
-	g.player.body.collider = &Box{
-		min: g.player.body.position.Sub(mgl32.Vec3{playerWidth / 2, playerHeight, playerWidth / 2}),
-		max: g.player.body.position.Add(mgl32.Vec3{playerWidth / 2, 0, playerWidth / 2}),
-	}
-}
-
-func (g *Game) HandleJump() {
-	if g.window.IsPressed(glfw.KeySpace) && !g.jumpDebounce && g.player.body.grounded {
-		g.jumpDebounce = true
-		g.player.body.Jump()
-	} else if g.window.IsReleased(glfw.KeySpace) {
-		g.jumpDebounce = false
-	}
-}
-
-func (g *Game) HandleMovePlayer() {
-	floor := g.world.FloorUnder(g.player.body.position)
-
-	var rightMove float32
-	var forwardMove float32
-
-	if g.window.IsPressed(glfw.KeyA) {
-		rightMove--
-	}
-	if g.window.IsPressed(glfw.KeyD) {
-		rightMove++
-	}
-	if g.window.IsPressed(glfw.KeyW) {
-		forwardMove++
-	}
-	if g.window.IsPressed(glfw.KeyS) {
-		forwardMove--
-	}
-
-	var floorBox *Box
-	if floor != nil && floor.active {
-		t := floor.Box()
-		floorBox = &t
-	}
-	g.player.Move(forwardMove, rightMove, floorBox)
-}
-
-// Sets a key callback function to handle mouse movement.
-func (g *Game) SetLookHandler() {
-	g.window.SetCursorPosCallback(func(w *glfw.Window, xpos, ypos float64) {
-		g.player.camera.Look(float32(xpos), float32(ypos))
-	})
-}
-
-// Sets handlers for mouse click and calls break/place block.
-func (g *Game) SetMouseClickHandler() {
-	var isPressedLeft bool
-	var isPressedRight bool
-	g.window.SetMouseButtonCallback(func(w *glfw.Window, button glfw.MouseButton, action glfw.Action, mods glfw.ModifierKey) {
-		switch button {
-		case glfw.MouseButtonLeft:
-			if action == glfw.Press && !isPressedLeft {
-				isPressedLeft = true
-				g.world.BreakBlock(g.target)
-			} else if action == glfw.Release {
-				isPressedLeft = false
-			}
-		case glfw.MouseButtonRight:
-			if action == glfw.Press && !isPressedRight {
-				isPressedRight = true
-				g.world.PlaceBlock(g.target)
-			} else if action == glfw.Release {
-				isPressedRight = false
-			}
-		}
-	})
 }

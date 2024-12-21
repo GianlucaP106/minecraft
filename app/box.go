@@ -54,8 +54,8 @@ func (b Box) Distance(pos mgl32.Vec3) float32 {
 	return v.Len()
 }
 
-// Returns true of the boxes intersect.
-func (b Box) Intersection(b2 Box) (bool, mgl32.Vec3) {
+// Returns true of the boxes intersect along the X or Z axis.
+func (b Box) IntersectionXZ(b2 Box) (bool, mgl32.Vec3) {
 	if !(b.min.X() <= b2.max.X() &&
 		b.max.X() >= b2.min.X() &&
 		b.min.Z() <= b2.max.Z() &&
@@ -80,6 +80,19 @@ func (b Box) Intersection(b2 Box) (bool, mgl32.Vec3) {
 	}
 
 	return true, penetration
+}
+
+// Returns true of the boxes intersect along the Y axis.
+func (b Box) IntersectionY(b2 Box) (bool, float32) {
+	if !(b.min.Y() <= b2.max.Y() &&
+		b.max.Y() >= b2.min.Y()) {
+		return false, 0
+	}
+
+	overlapY1 := b.max.Y() - b2.min.Y()
+	overlapY2 := b2.max.Y() - b.min.Y()
+	depthY := min(overlapY1, overlapY2)
+	return true, depthY
 }
 
 // Combines 2 boxes into 1 by comparing along Y.

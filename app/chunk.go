@@ -37,25 +37,16 @@ func newChunk(shader *Shader, atlas *TextureAtlas, initialPos mgl32.Vec3) *Chunk
 
 // Initialize the chunk metadata on the GPU.
 // Sets the given block to be active as the first block.
-func (c *Chunk) Init(i, j, k int) {
+func (c *Chunk) Init() {
 	gl.UseProgram(c.shader.handle)
 	for i2 := 0; i2 < chunkSize; i2++ {
 		for j2 := 0; j2 < chunkSize; j2++ {
 			for k2 := 0; k2 < chunkSize; k2++ {
-				t := "earth"
-				if k2%2 == 0 {
-					t = "cobblestone"
-				}
-				b := newBlock(c, i2, j2, k2, t)
+				b := newBlock(c, i2, j2, k2, "bedrock")
 				c.blocks[i2][j2][k2] = b
-				if i == i2 && j == j2 && k == k2 {
-					b.active = true
-				}
 			}
 		}
 	}
-
-	// gl.BindFragDataLocation(c.shader, 0, gl.Str("outputColor\x00"))
 
 	// gen vao and vbo
 	gl.GenVertexArrays(1, &c.vao)
@@ -167,7 +158,7 @@ func (c *Chunk) Draw(target *TargetBlock, view mgl32.Mat4) {
 	lookedAtBlockUniform := gl.GetUniformLocation(c.shader.handle, gl.Str("lookedAtBlock\x00"))
 	if target != nil {
 		isLooking = 1
-		pos := target.block.WorldPos()
+		pos := target.block.WorldPos().Sub(mgl32.Vec3{0.5, 0.5, 0.5})
 		gl.Uniform3f(lookedAtBlockUniform, pos.X(), pos.Y(), pos.Z())
 	}
 
