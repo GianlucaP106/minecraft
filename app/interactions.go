@@ -52,11 +52,12 @@ func (g *Game) PlaceBlock() {
 
 	// sync with hotbar
 	// TODO:
-	if g.player.inventory.Count(blockType) == 0 {
+	c := g.player.inventory.Count(blockType)
+	if c == 0 {
 		g.hotbar.Remove(blockType)
 	}
 
-	log.Println("Placing new block at position: ", block.WorldPos())
+	log.Printf("Placing %s (%d left) at position: %v", blockType, c, block.WorldPos())
 	block.active = true
 	block.blockType = blockType
 	block.chunk.Buffer()

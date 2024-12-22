@@ -42,16 +42,33 @@ func (w *World) SpawnPlatform() {
 }
 
 func (w *World) Terrain() {
-	m := w.generator.Generate(200, 200, 100, 0.01, 11)
-	for x, heights := range m {
+	// TODO:
+	w.generator.Seed(100)
+	size := 100
+	m3 := w.generator.Generate3D(size, size, size, 0.11)
+	m2 := w.generator.Generate2D(size, size, size, 0.01)
+
+	for x, heights := range m2 {
 		for z, height := range heights {
-			for i := 0; i < int(height); i++ {
-				b := w.Block(mgl32.Vec3{float32(x), float32(i), float32(z)})
+			for y := 0; y < int(height); y++ {
+				b := w.Block(mgl32.Vec3{float32(x), float32(y), float32(z)})
 				b.active = true
 				b.blockType = "earth-grass"
 			}
 		}
 	}
+
+	for i, layer := range m3 {
+		for j, row := range layer {
+			for k, val := range row {
+				if val < 0.3 {
+					b := w.Block(mgl32.Vec3{float32(i), float32(j), float32(k)})
+					b.active = false
+				}
+			}
+		}
+	}
+
 	for _, c := range w.chunks.All() {
 		c.Buffer()
 	}
@@ -65,7 +82,7 @@ func (w *World) SpawnChunk(pos mgl32.Vec3) *Chunk {
 		int(pos.Z())%chunkSize != 0 {
 		panic("invalid chunk position")
 	}
-	log.Println("Spawning new chunk with postion: ", pos)
+	log.Println("Spawning new chunk: ", pos)
 
 	// init chunk, attribs and pointers
 	chunk := newChunk(w.chunkShader, w.atlas, pos)

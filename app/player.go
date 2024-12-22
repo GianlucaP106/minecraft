@@ -16,16 +16,17 @@ const (
 	playerHeight = 1.5
 	playerMass   = 80
 	playerWidth  = 0.5
-	playerSpeed  = 10
+	playerSpeed  = 15
 )
 
 func newPlayer() *Player {
 	p := &Player{}
-	p.camera = newCamera(mgl32.Vec3{10, 100, 1})
+	p.camera = newCamera(mgl32.Vec3{10, 60, 1})
 	p.body = &RigidBody{
 		mass:     playerMass,
 		position: p.camera.pos,
 		flying:   false,
+
 		// set call back to update camera position
 		cb: func(rb *RigidBody) {
 			p.camera.pos = rb.position
