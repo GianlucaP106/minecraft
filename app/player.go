@@ -1,6 +1,8 @@
 package app
 
 import (
+	"math"
+
 	"github.com/go-gl/mathgl/mgl32"
 )
 
@@ -16,7 +18,7 @@ const (
 	playerHeight = 1.5
 	playerMass   = 80
 	playerWidth  = 0.5
-	playerSpeed  = 15
+	playerSpeed  = 6
 )
 
 func newPlayer() *Player {
@@ -29,11 +31,21 @@ func newPlayer() *Player {
 
 		// set call back to update camera position
 		cb: func(rb *RigidBody) {
-			p.camera.pos = rb.position
+			p.setCameraPosition()
 		},
 	}
 	p.inventory = newInventory()
 	return p
+}
+
+// Returns the body position with a walk transform that can be set
+func (p *Player) setCameraPosition() {
+	// apply a cycloid translation to simulate walking bounce
+	d := p.body.tripDistance * 1.5
+	x := 0.05 * math.Cos(float64(math.Pi/2+d))
+	y := 0.05 * math.Sin(float64(math.Pi/2-2*d))
+	trans := mgl32.Translate3D(float32(x), float32(y), 0)
+	p.camera.pos = trans.Mul4x1(p.body.position.Vec4(1)).Vec3()
 }
 
 // Returns a Ray which points at the direction of the view.

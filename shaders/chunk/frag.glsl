@@ -9,6 +9,9 @@ out vec4 color;
 
 void main() {
     color = texture(tex, fragTexCoord);
+    if (color.a < 0.1) {
+        discard;
+    }
     if (selected.x == 1.0) {
         color = color * 0.6;
     }

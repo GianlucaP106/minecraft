@@ -90,6 +90,7 @@ func (c *Chunk) Buffer() {
 
 				// get vertices for visible excludeFaces only
 				// TODO: consider other chunks as well
+				// TODO: consider special block types (i.e. leaves)
 				var excludeFaces [6]bool
 				checkExclude := func(i, j, k int, face Direction) {
 					if i < 0 || i >= chunkSize || j < 0 || j >= chunkSize || k < 0 || k >= chunkSize {

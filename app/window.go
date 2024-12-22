@@ -14,8 +14,8 @@ type Window struct {
 }
 
 const (
-	windowWidth  = 800
-	windowHeight = 600
+	windowWidth  = 1500
+	windowHeight = 1000
 )
 
 func newWindow() *Window {

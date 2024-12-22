@@ -11,9 +11,10 @@ type PhysicsEngine struct {
 }
 
 const (
-	jumpSpeed          = 5
-	gravity            = 9.8
-	penetrationEpsilon = 0.05
+	jumpSpeed              = 7
+	gravity                = 22
+	penetrationEpsilon     = 0.05
+	airMovementSuppression = 0.5
 )
 
 func newPhysicsEngine() *PhysicsEngine {
@@ -50,21 +51,32 @@ func (p *PhysicsEngine) update(body *RigidBody, delta float64) {
 	// compute and set acceleration, velocity and posistion
 	acc := body.force.Mul(1 / body.mass)
 	body.velocity = body.velocity.Add(acc.Mul(float32(delta)))
-	body.position = body.position.Add(body.velocity.Mul(float32(delta)))
+
+	dpos := body.velocity.Mul(float32(delta))
+	body.position = body.position.Add(dpos)
+
+	// increment the trip distance
+	body.tripDistance += dpos.Len()
 
 	// reset force
 	body.force = mgl32.Vec3{}
+
+	// reset the trip distance if body is not moving
+	if body.velocity.Len() == 0 && body.tripDistance > 0 {
+		body.tripDistance = 0
+	}
 }
 
 type RigidBody struct {
-	cb       func(*RigidBody)
-	collider *Box
-	position mgl32.Vec3
-	velocity mgl32.Vec3
-	force    mgl32.Vec3
-	flying   bool
-	mass     float32
-	grounded bool
+	cb           func(*RigidBody)
+	collider     *Box
+	tripDistance float32
+	position     mgl32.Vec3
+	velocity     mgl32.Vec3
+	force        mgl32.Vec3
+	mass         float32
+	flying       bool
+	grounded     bool
 }
 
 // Moves a rigid body using direct velocity.
@@ -88,7 +100,7 @@ func (r *RigidBody) Move(movement mgl32.Vec3, ground *Box, walls []Box) {
 
 	// if in the air we can suppress movement
 	if !r.grounded {
-		movement = movement.Mul(0.7)
+		movement = movement.Mul(airMovementSuppression)
 	}
 
 	if r.collider != nil {

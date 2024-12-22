@@ -5,8 +5,8 @@ import (
 )
 
 type NoiseMapGenerator struct {
-	seed int64
 	perm []int
+	seed int64
 }
 
 func newNoiseMapGenerator() *NoiseMapGenerator {
@@ -14,16 +14,21 @@ func newNoiseMapGenerator() *NoiseMapGenerator {
 	return n
 }
 
-func (n *NoiseMapGenerator) Generate3D(width, height, depth int, scale float32) [][][]float32 {
+func (n *NoiseMapGenerator) Generate3D(width, depth, height int, scale float32, normalize bool, f func(noise float32, i, j, k int) float32) [][][]float32 {
 	o := make([][][]float32, 0)
 	for i := 0; i < width; i++ {
 		o = append(o, make([][]float32, 0))
 		for j := 0; j < height; j++ {
 			o[i] = append(o[i], make([]float32, 0))
 			for k := 0; k < depth; k++ {
-				noise := n.altitudePerlinNoise3D(float32(i)*scale, float32(j)*scale, float32(k), height, n.perm)
-				noise += 1
-				noise /= 2
+				noise := n.perlinNoise3D(float32(i)*scale, float32(j)*scale, float32(k), n.perm)
+				if normalize {
+					noise += 1
+					noise /= 2
+				}
+				if f != nil {
+					noise = f(noise, i, j, k)
+				}
 				o[i][j] = append(o[i][j], noise)
 			}
 		}
@@ -31,15 +36,19 @@ func (n *NoiseMapGenerator) Generate3D(width, height, depth int, scale float32) 
 	return o
 }
 
-func (n *NoiseMapGenerator) Generate2D(width, depth, height int, scale float32) [][]float32 {
+func (n *NoiseMapGenerator) Generate2D(width, depth int, scale float32, normalize bool, f func(noise float32, i, j int) float32) [][]float32 {
 	o := make([][]float32, 0)
 	for i := 0; i < depth; i++ {
 		o = append(o, make([]float32, 0))
 		for j := 0; j < width; j++ {
 			noise := n.perlinNoise2D(float32(j)*scale, float32(i)*scale, n.perm)
-			noise += 1
-			noise /= 2
-			noise *= float32(height)
+			if normalize {
+				noise += 1
+				noise /= 2
+			}
+			if f != nil {
+				noise = f(noise, i, j)
+			}
 			o[i] = append(o[i], noise)
 		}
 	}
@@ -51,38 +60,51 @@ func (n *NoiseMapGenerator) Seed(seed int64) {
 	n.perm = n.generatePermutation(seed)
 }
 
-// Fade function for smoothing
 func (n *NoiseMapGenerator) fade(t float32) float32 {
 	return t * t * t * (t*(t*6-15) + 10)
 }
 
-// Linear interpolation
 func (n *NoiseMapGenerator) lerp(t, a, b float32) float32 {
 	return a + t*(b-a)
 }
 
-// Gradient function
 func (n *NoiseMapGenerator) grad3D(hash int, x, y, z float32) float32 {
-	h := hash & 3
-	var u float32
-	var v float32
-	if h < 8 || h == 12 || h == 13 {
-		u = x
-	} else {
-		u = y
+	switch hash & 0xF {
+	case 0x0:
+		return x + y
+	case 0x1:
+		return -x + y
+	case 0x2:
+		return x - y
+	case 0x3:
+		return -x - y
+	case 0x4:
+		return x + z
+	case 0x5:
+		return -x + z
+	case 0x6:
+		return x - z
+	case 0x7:
+		return -x - z
+	case 0x8:
+		return y + z
+	case 0x9:
+		return -y + z
+	case 0xA:
+		return y - z
+	case 0xB:
+		return -y - z
+	case 0xC:
+		return y + x
+	case 0xD:
+		return -y + z
+	case 0xE:
+		return y - x
+	case 0xF:
+		return -y - z
+	default:
+		return 0
 	}
-	if h < 4 || h == 12 || h == 13 {
-		v = y
-	} else {
-		v = z
-	}
-	if h&1 == 0 {
-		u = -u
-	}
-	if h&2 == 0 {
-		v = -v
-	}
-	return u + v
 }
 
 func (n *NoiseMapGenerator) grad2D(hash int, x, y float32) float32 {
@@ -96,16 +118,6 @@ func (n *NoiseMapGenerator) grad2D(hash int, x, y float32) float32 {
 		v = -y
 	}
 	return u + v
-}
-
-func (n *NoiseMapGenerator) altitudePerlinNoise3D(x, y, z float32, height int, perm []int) float32 {
-	base := n.perlinNoise3D(x, y, z, perm)
-	// TODO:
-	altFactor := 1.0 - max(0, y-10)/float32(height)
-	if altFactor < 0 {
-		altFactor = 0
-	}
-	return base * altFactor
 }
 
 func (n *NoiseMapGenerator) perlinNoise3D(x, y, z float32, perm []int) float32 {
@@ -199,7 +211,6 @@ func (n *NoiseMapGenerator) perlinNoise2D(x, y float32, perm []int) float32 {
 	return n.lerp(v, lx0, lx1)
 }
 
-// Generate a permutation table
 func (n *NoiseMapGenerator) generatePermutation(seed int64) []int {
 	perm := make([]int, 256)
 	for i := range perm {

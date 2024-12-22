@@ -5,6 +5,11 @@ import (
 	"github.com/go-gl/mathgl/mgl32"
 )
 
+const (
+	floorDetectionEpsilon = 0.01
+	wallDetectionHeight   = 1.3
+)
+
 // Handles jump from pressed keys.
 func (g *Game) HandleJump() {
 	if g.window.IsPressed(glfw.KeySpace) && !g.jumpDebounce && g.player.body.grounded {
@@ -20,7 +25,7 @@ func (g *Game) HandleMovePlayer() {
 	walls := make([]Box, 0)
 	wall := func(x, z float32) {
 		wall1 := g.world.Block(g.player.body.position.Add(mgl32.Vec3{x, 0, z}))
-		wall2 := g.world.Block(g.player.body.position.Sub(mgl32.Vec3{0, playerHeight / 2, 0}).Add(mgl32.Vec3{x, 0, z}))
+		wall2 := g.world.Block(g.player.body.position.Sub(mgl32.Vec3{0, wallDetectionHeight, 0}).Add(mgl32.Vec3{x, 0, z}))
 		var box *Box
 		if wall1 != nil && wall1.active {
 			b := wall1.Box()
@@ -50,7 +55,7 @@ func (g *Game) HandleMovePlayer() {
 		max: g.player.body.position.Add(mgl32.Vec3{playerWidth / 2, 0, playerWidth / 2}),
 	}
 
-	floor := g.world.Block(g.player.body.position.Sub(mgl32.Vec3{0, playerHeight + floorCollisionEpsilon, 0}))
+	floor := g.world.Block(g.player.body.position.Sub(mgl32.Vec3{0, playerHeight + floorDetectionEpsilon, 0}))
 
 	var rightMove float32
 	var forwardMove float32

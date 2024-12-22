@@ -31,10 +31,9 @@ type Game struct {
 	// physics engine for player movements and collisions
 	physics *PhysicsEngine
 
+	// TODO: find better place
 	jumpDebounce bool
 }
-
-const floorCollisionEpsilon = 0.01
 
 // Initializes the app. Executes before the game loop.
 func (g *Game) Init() {
