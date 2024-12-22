@@ -123,7 +123,7 @@ func (r *RigidBody) Move(movement mgl32.Vec3, ground *Box, walls []Box) {
 	r.velocity = mgl32.Vec3{movement.X(), yComponent, movement.Z()}
 }
 
-// Simulates a jump on the body by exerting a force upward of jumpForce * body.mass
+// Simulates a jump on the body by setting the velocity.
 func (r *RigidBody) Jump() {
 	r.velocity = r.velocity.Add(mgl32.Vec3{0, jumpSpeed, 0})
 	r.grounded = false

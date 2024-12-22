@@ -3,11 +3,6 @@ package app
 type Inventory struct {
 	// maps the blockType to count
 	content map[string]int
-
-	// selected block type
-	selected string
-
-	// TODO: hotbar
 }
 
 func newInventory() *Inventory {
@@ -21,12 +16,17 @@ func (i *Inventory) Add(blockType string, count int) {
 	i.content[blockType] += count
 }
 
+// Returns count of the item.
+func (i *Inventory) Count(blockType string) int {
+	return i.content[blockType]
+}
+
 // Grabs a number of the selected blockType and returns true if amount was deducted.
-func (i *Inventory) Grab(count int) (bool, string) {
-	stock, exists := i.content[i.selected]
-	if exists && stock > count {
-		i.content[i.selected] -= count
-		return true, i.selected
+func (i *Inventory) Grab(blockType string, count int) bool {
+	stock, exists := i.content[blockType]
+	if exists && stock >= count {
+		i.content[blockType] -= count
+		return true
 	}
-	return false, ""
+	return false
 }

@@ -27,11 +27,6 @@ func (g *Game) LookBlock() {
 }
 
 func (g *Game) PlaceBlock() {
-	hasInventory, blockType := g.player.inventory.Grab(1)
-	if !hasInventory {
-		return
-	}
-
 	pos := g.target.block.WorldPos()
 	newPos := pos.Add(g.target.face.Direction())
 	block := g.world.Block(newPos)
@@ -49,6 +44,18 @@ func (g *Game) PlaceBlock() {
 		return
 	}
 
+	blockType := g.hotbar.Selected()
+	hasInventory := g.player.inventory.Grab(blockType, 1)
+	if !hasInventory {
+		return
+	}
+
+	// sync with hotbar
+	// TODO:
+	if g.player.inventory.Count(blockType) == 0 {
+		g.hotbar.Remove(blockType)
+	}
+
 	log.Println("Placing new block at position: ", block.WorldPos())
 	block.active = true
 	block.blockType = blockType
@@ -56,11 +63,17 @@ func (g *Game) PlaceBlock() {
 }
 
 func (g *Game) BreakBlock() {
-	if g.target != nil {
-		log.Println("Breaking: ", g.target.block.WorldPos())
-		g.target.block.active = false
-		g.target.block.chunk.Buffer()
+	if g.target == nil {
+		return
 	}
+	log.Println("Breaking: ", g.target.block.WorldPos())
+	g.target.block.active = false
+
+	blockType := g.target.block.blockType
+	log.Println("Adding ", blockType, " to inventory")
+	g.player.inventory.Add(blockType, 1)
+	g.hotbar.Add(blockType)
+	g.target.block.chunk.Buffer()
 }
 
 // Sets handlers for mouse click and calls break/place block.
@@ -85,4 +98,33 @@ func (g *Game) SetMouseClickHandler() {
 			}
 		}
 	})
+}
+
+func (g *Game) HandleInventorySelect() {
+	key := -1
+	switch {
+	case g.window.IsPressed(glfw.Key1):
+		key = 1
+	case g.window.IsPressed(glfw.Key2):
+		key = 2
+	case g.window.IsPressed(glfw.Key3):
+		key = 3
+	case g.window.IsPressed(glfw.Key4):
+		key = 4
+	case g.window.IsPressed(glfw.Key5):
+		key = 5
+	case g.window.IsPressed(glfw.Key6):
+		key = 6
+	case g.window.IsPressed(glfw.Key7):
+		key = 7
+	case g.window.IsPressed(glfw.Key8):
+		key = 8
+	case g.window.IsPressed(glfw.Key9):
+		key = 9
+	}
+
+	key--
+	if key > -1 {
+		g.hotbar.Select(key)
+	}
 }

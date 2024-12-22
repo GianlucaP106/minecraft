@@ -17,7 +17,7 @@ type World struct {
 	// shader program that draws the chunks
 	chunkShader *Shader
 
-	//
+	// generates noise map for terrain generation
 	generator *NoiseMapGenerator
 }
 
@@ -42,7 +42,7 @@ func (w *World) SpawnPlatform() {
 }
 
 func (w *World) Terrain() {
-	m := w.generator.Generate(50, 50, 10, 0.01, 11)
+	m := w.generator.Generate(200, 200, 100, 0.01, 11)
 	for x, heights := range m {
 		for z, height := range heights {
 			for i := 0; i < int(height); i++ {

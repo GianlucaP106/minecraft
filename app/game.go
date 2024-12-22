@@ -23,6 +23,7 @@ type Game struct {
 
 	// crosshair shows a cross on the screen
 	crosshair *Crosshair
+	hotbar    *Hotbar
 
 	// provides time delta for game loop
 	clock *Clock
@@ -50,9 +51,6 @@ func (g *Game) Init() {
 	atlas := newTextureAtlas(g.textures.CreateTexture("atlas.png"))
 
 	g.player = newPlayer()
-	g.player.inventory.Add("earth-grass", 10)
-	g.player.inventory.selected = "earth-grass"
-	// g.player.inventory.Add("earth-grass", 10)
 
 	g.physics = newPhysicsEngine()
 	g.physics.Register(g.player.body)
@@ -70,6 +68,9 @@ func (g *Game) Init() {
 
 	g.crosshair = newCrosshair(g.shaders.Program("crosshair"))
 	g.crosshair.Init()
+
+	g.hotbar = newHotbar(g.shaders.Program("hotbar"), atlas)
+	g.hotbar.Init()
 }
 
 // Runs the game loop.
@@ -81,10 +82,10 @@ func (g *Game) Run() {
 		// clear buffers
 		gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
 
-		// handle movements
 		g.HandleMovePlayer()
 		g.HandleJump()
 		g.LookBlock()
+		g.HandleInventorySelect()
 
 		delta := g.clock.Delta()
 		g.physics.Tick(delta)
@@ -100,6 +101,7 @@ func (g *Game) Run() {
 
 		// draw cross hair
 		g.crosshair.Draw()
+		g.hotbar.Draw()
 
 		// window maintenance
 		g.window.SwapBuffers()
