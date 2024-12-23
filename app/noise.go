@@ -4,14 +4,27 @@ import (
 	"math/rand"
 )
 
+// TODO: improve and clean
 type NoiseMapGenerator struct {
-	perm []int
-	seed int64
+	perm        []int
+	seed        int64
+	octaves     int
+	persistence float32
+	lacunarity  float32
 }
 
 func newNoiseMapGenerator() *NoiseMapGenerator {
-	n := &NoiseMapGenerator{}
-	return n
+	return &NoiseMapGenerator{
+		octaves:     1,
+		persistence: 1,
+		lacunarity:  1,
+	}
+}
+
+func (n *NoiseMapGenerator) SetOctaves(octaves int, persistence, lacunarity float32) {
+	n.octaves = octaves
+	n.persistence = persistence
+	n.lacunarity = lacunarity
 }
 
 func (n *NoiseMapGenerator) Generate3D(width, depth, height int, scale float32, normalize bool, f func(noise float32, i, j, k int) float32) [][][]float32 {
@@ -21,7 +34,7 @@ func (n *NoiseMapGenerator) Generate3D(width, depth, height int, scale float32, 
 		for j := 0; j < height; j++ {
 			o[i] = append(o[i], make([]float32, 0))
 			for k := 0; k < depth; k++ {
-				noise := n.perlinNoise3D(float32(i)*scale, float32(j)*scale, float32(k), n.perm)
+				noise := n.octaveNoise3D(float32(i), float32(j), float32(k), scale)
 				if normalize {
 					noise += 1
 					noise /= 2
@@ -41,7 +54,7 @@ func (n *NoiseMapGenerator) Generate2D(width, depth int, scale float32, normaliz
 	for i := 0; i < depth; i++ {
 		o = append(o, make([]float32, 0))
 		for j := 0; j < width; j++ {
-			noise := n.perlinNoise2D(float32(j)*scale, float32(i)*scale, n.perm)
+			noise := n.octaveNoise2D(float32(j), float32(i), scale)
 			if normalize {
 				noise += 1
 				noise /= 2
@@ -60,64 +73,37 @@ func (n *NoiseMapGenerator) Seed(seed int64) {
 	n.perm = n.generatePermutation(seed)
 }
 
-func (n *NoiseMapGenerator) fade(t float32) float32 {
-	return t * t * t * (t*(t*6-15) + 10)
+func (n *NoiseMapGenerator) octaveNoise3D(x, y, z, scale float32) float32 {
+	total := float32(0)
+	frequency := float32(1)
+	amplitude := float32(1)
+	maxValue := float32(0)
+
+	for i := 0; i < n.octaves; i++ {
+		total += n.perlinNoise3D(x*scale*frequency, y*scale*frequency, z*scale*frequency, n.perm) * amplitude
+
+		maxValue += amplitude
+		amplitude *= n.persistence
+		frequency *= n.lacunarity
+	}
+
+	return total / maxValue
 }
 
-func (n *NoiseMapGenerator) lerp(t, a, b float32) float32 {
-	return a + t*(b-a)
-}
+func (n *NoiseMapGenerator) octaveNoise2D(x, y, scale float32) float32 {
+	total := float32(0)
+	frequency := float32(1)
+	amplitude := float32(1)
+	maxValue := float32(0)
 
-func (n *NoiseMapGenerator) grad3D(hash int, x, y, z float32) float32 {
-	switch hash & 0xF {
-	case 0x0:
-		return x + y
-	case 0x1:
-		return -x + y
-	case 0x2:
-		return x - y
-	case 0x3:
-		return -x - y
-	case 0x4:
-		return x + z
-	case 0x5:
-		return -x + z
-	case 0x6:
-		return x - z
-	case 0x7:
-		return -x - z
-	case 0x8:
-		return y + z
-	case 0x9:
-		return -y + z
-	case 0xA:
-		return y - z
-	case 0xB:
-		return -y - z
-	case 0xC:
-		return y + x
-	case 0xD:
-		return -y + z
-	case 0xE:
-		return y - x
-	case 0xF:
-		return -y - z
-	default:
-		return 0
+	for i := 0; i < n.octaves; i++ {
+		total += n.perlinNoise2D(x*scale*frequency, y*scale*frequency, n.perm) * amplitude
+		maxValue += amplitude
+		amplitude *= n.persistence
+		frequency *= n.lacunarity
 	}
-}
 
-func (n *NoiseMapGenerator) grad2D(hash int, x, y float32) float32 {
-	h := hash & 3
-	u := x
-	if h&1 == 0 {
-		u = -x
-	}
-	v := y
-	if h&2 == 0 {
-		v = -y
-	}
-	return u + v
+	return total / maxValue
 }
 
 func (n *NoiseMapGenerator) perlinNoise3D(x, y, z float32, perm []int) float32 {
@@ -223,4 +209,64 @@ func (n *NoiseMapGenerator) generatePermutation(seed int64) []int {
 	})
 	// Duplicate for easier wrapping
 	return append(perm, perm...)
+}
+
+func (n *NoiseMapGenerator) fade(t float32) float32 {
+	return t * t * t * (t*(t*6-15) + 10)
+}
+
+func (n *NoiseMapGenerator) lerp(t, a, b float32) float32 {
+	return a + t*(b-a)
+}
+
+func (n *NoiseMapGenerator) grad3D(hash int, x, y, z float32) float32 {
+	switch hash & 0xF {
+	case 0x0:
+		return x + y
+	case 0x1:
+		return -x + y
+	case 0x2:
+		return x - y
+	case 0x3:
+		return -x - y
+	case 0x4:
+		return x + z
+	case 0x5:
+		return -x + z
+	case 0x6:
+		return x - z
+	case 0x7:
+		return -x - z
+	case 0x8:
+		return y + z
+	case 0x9:
+		return -y + z
+	case 0xA:
+		return y - z
+	case 0xB:
+		return -y - z
+	case 0xC:
+		return y + x
+	case 0xD:
+		return -y + z
+	case 0xE:
+		return y - x
+	case 0xF:
+		return -y - z
+	default:
+		return 0
+	}
+}
+
+func (n *NoiseMapGenerator) grad2D(hash int, x, y float32) float32 {
+	h := hash & 3
+	u := x
+	if h&1 == 0 {
+		u = -x
+	}
+	v := y
+	if h&2 == 0 {
+		v = -y
+	}
+	return u + v
 }

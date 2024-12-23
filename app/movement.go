@@ -10,8 +10,23 @@ const (
 	wallDetectionHeight   = 1.3
 )
 
+func (g *Game) HanldleFly() {
+	if g.window.IsPressed(glfw.KeyF) && !g.flyDebounce {
+		g.flyDebounce = true
+		g.player.body.flying = !g.player.body.flying
+	} else if g.window.IsReleased(glfw.KeyF) {
+		g.flyDebounce = false
+	}
+}
+
 // Handles jump from pressed keys.
 func (g *Game) HandleJump() {
+	// TODO: handle ceiling in a better way (see physics.go)
+	ceiling := g.world.Block(g.player.body.position.Add(mgl32.Vec3{0, 0.5, 0}))
+	if ceiling != nil && ceiling.active {
+		return
+	}
+
 	if g.window.IsPressed(glfw.KeySpace) && !g.jumpDebounce && g.player.body.grounded {
 		g.jumpDebounce = true
 		g.player.body.Jump()
@@ -21,7 +36,34 @@ func (g *Game) HandleJump() {
 }
 
 // Handles player move from pressed keys.
+// TODO: clean up function
 func (g *Game) HandleMovePlayer() {
+	// get input for movement
+	var rightMove float32
+	var forwardMove float32
+
+	if g.window.IsPressed(glfw.KeyA) {
+		rightMove--
+	}
+	if g.window.IsPressed(glfw.KeyD) {
+		rightMove++
+	}
+	if g.window.IsPressed(glfw.KeyW) {
+		forwardMove++
+	}
+	if g.window.IsPressed(glfw.KeyS) {
+		forwardMove--
+	}
+
+	// input movement direction
+	movement := g.player.Movement(forwardMove, rightMove)
+
+	// add flying movement
+	if g.window.IsPressed(glfw.KeySpace) && g.player.body.flying {
+		movement[1] = 5
+	}
+
+	// collect colliders (walls, floors, ceiling)
 	walls := make([]Box, 0)
 	wall := func(x, z float32) {
 		wall1 := g.world.Block(g.player.body.position.Add(mgl32.Vec3{x, 0, z}))
@@ -50,35 +92,23 @@ func (g *Game) HandleMovePlayer() {
 	wall(0, -0.5)
 	wall(0, 0.5)
 
-	g.player.body.collider = &Box{
-		min: g.player.body.position.Sub(mgl32.Vec3{playerWidth / 2, playerHeight, playerWidth / 2}),
-		max: g.player.body.position.Add(mgl32.Vec3{playerWidth / 2, 0, playerWidth / 2}),
-	}
-
-	floor := g.world.Block(g.player.body.position.Sub(mgl32.Vec3{0, playerHeight + floorDetectionEpsilon, 0}))
-
-	var rightMove float32
-	var forwardMove float32
-
-	if g.window.IsPressed(glfw.KeyA) {
-		rightMove--
-	}
-	if g.window.IsPressed(glfw.KeyD) {
-		rightMove++
-	}
-	if g.window.IsPressed(glfw.KeyW) {
-		forwardMove++
-	}
-	if g.window.IsPressed(glfw.KeyS) {
-		forwardMove--
-	}
-
 	var floorBox *Box
+	floorRelPos := g.player.body.position.Sub(mgl32.Vec3{0, playerHeight + floorDetectionEpsilon, 0})
+	floor := g.world.Block(floorRelPos)
 	if floor != nil && floor.active {
 		t := floor.Box()
 		floorBox = &t
 	}
-	g.player.Move(forwardMove, rightMove, floorBox, walls)
+
+	celing := g.world.Block(g.player.body.position.Add(mgl32.Vec3{0, 0.5, 0}))
+	var celingBox *Box
+	if celing != nil && celing.active {
+		t := celing.Box()
+		celingBox = &t
+	}
+
+	// g.player.Move(forwardMove, rightMove, floorBox, celingBox, walls)
+	g.player.body.Move(movement, floorBox, celingBox, walls)
 }
 
 // Sets a key callback function to handle mouse movement.

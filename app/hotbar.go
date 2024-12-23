@@ -7,12 +7,12 @@ import (
 
 type Hotbar struct {
 	shader    *Shader
+	atlas     *TextureAtlas
+	bar       [9]string
+	vertCount int
+	selected  int
 	vao       uint32
 	vbo       uint32
-	vertCount int
-	atlas     *TextureAtlas
-	selected  int
-	bar       [9]string
 }
 
 func newHotbar(shader *Shader, atlas *TextureAtlas) *Hotbar {

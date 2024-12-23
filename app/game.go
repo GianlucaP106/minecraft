@@ -33,6 +33,7 @@ type Game struct {
 
 	// TODO: find better place
 	jumpDebounce bool
+	flyDebounce  bool
 }
 
 // Initializes the app. Executes before the game loop.
@@ -56,7 +57,7 @@ func (g *Game) Init() {
 
 	// init world
 	g.world = newWorld(g.shaders.Program("chunk"), atlas)
-	g.world.Terrain()
+	g.world.Init()
 
 	// init the clock which computes delta for time based computations
 	g.clock = newClock()
@@ -83,6 +84,7 @@ func (g *Game) Run() {
 
 		g.HandleMovePlayer()
 		g.HandleJump()
+		g.HanldleFly()
 		g.LookBlock()
 		g.HandleInventorySelect()
 

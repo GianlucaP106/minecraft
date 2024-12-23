@@ -11,10 +11,11 @@ type PhysicsEngine struct {
 }
 
 const (
-	jumpSpeed              = 7
-	gravity                = 22
+	jumpSpeed              = 9
+	gravity                = 30
 	penetrationEpsilon     = 0.05
 	airMovementSuppression = 0.5
+	flyingSpeedMultipier   = 4.0
 )
 
 func newPhysicsEngine() *PhysicsEngine {
@@ -42,6 +43,7 @@ func (p *PhysicsEngine) Remove(body *RigidBody) {
 	delete(p.registrations, body)
 }
 
+// Runs on every tick. Will update the rigid bodies with derived physics.
 func (p *PhysicsEngine) update(body *RigidBody, delta float64) {
 	// handle gravity
 	if !body.grounded && !body.flying {
@@ -54,6 +56,10 @@ func (p *PhysicsEngine) update(body *RigidBody, delta float64) {
 
 	dpos := body.velocity.Mul(float32(delta))
 	body.position = body.position.Add(dpos)
+	body.collider = &Box{
+		min: body.position.Sub(mgl32.Vec3{body.width / 2, body.height, body.width / 2}),
+		max: body.position.Add(mgl32.Vec3{body.width / 2, 0, body.width / 2}),
+	}
 
 	// increment the trip distance
 	body.tripDistance += dpos.Len()
@@ -68,20 +74,22 @@ func (p *PhysicsEngine) update(body *RigidBody, delta float64) {
 }
 
 type RigidBody struct {
-	cb           func(*RigidBody)
-	collider     *Box
-	tripDistance float32
-	position     mgl32.Vec3
-	velocity     mgl32.Vec3
-	force        mgl32.Vec3
-	mass         float32
-	flying       bool
-	grounded     bool
+	cb            func(*RigidBody)
+	collider      *Box
+	tripDistance  float32
+	position      mgl32.Vec3
+	velocity      mgl32.Vec3
+	force         mgl32.Vec3
+	mass          float32
+	width, height float32
+	flying        bool
+	grounded      bool
 }
 
 // Moves a rigid body using direct velocity.
 // Takes an optional ground and walls will get computed as colliders.
-func (r *RigidBody) Move(movement mgl32.Vec3, ground *Box, walls []Box) {
+// TODO: handle ceiling
+func (r *RigidBody) Move(movement mgl32.Vec3, ground *Box, _ *Box, walls []Box) {
 	if ground != nil && !r.grounded {
 		// set grounded only the first time (when in contact)
 		r.grounded = true
@@ -99,10 +107,16 @@ func (r *RigidBody) Move(movement mgl32.Vec3, ground *Box, walls []Box) {
 	}
 
 	// if in the air we can suppress movement
-	if !r.grounded {
+	if !r.grounded && !r.flying {
 		movement = movement.Mul(airMovementSuppression)
 	}
 
+	// temporary multiplier
+	if r.flying {
+		movement = movement.Mul(flyingSpeedMultipier)
+	}
+
+	// hanlde wall collisions
 	if r.collider != nil {
 		for _, c := range walls {
 			b, penetration := r.collider.IntersectionXZ(c)
