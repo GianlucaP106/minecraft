@@ -12,7 +12,7 @@ type PhysicsEngine struct {
 
 const (
 	jumpSpeed              = 9
-	gravity                = 30
+	gravity                = 27.5
 	penetrationEpsilon     = 0.05
 	airMovementSuppression = 0.5
 	flyingSpeedMultipier   = 4.0
@@ -64,13 +64,13 @@ func (p *PhysicsEngine) update(body *RigidBody, delta float64) {
 	// increment the trip distance
 	body.tripDistance += dpos.Len()
 
-	// reset force
-	body.force = mgl32.Vec3{}
-
 	// reset the trip distance if body is not moving
-	if body.velocity.Len() == 0 && body.tripDistance > 0 {
+	if dpos.Len() == 0 && body.tripDistance > 0 {
 		body.tripDistance = 0
 	}
+
+	// reset force
+	body.force = mgl32.Vec3{}
 }
 
 type RigidBody struct {

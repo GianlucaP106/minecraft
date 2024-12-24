@@ -2,127 +2,181 @@ package app
 
 import (
 	"math/rand"
+
+	"github.com/go-gl/mathgl/mgl32"
 )
 
-// TODO: improve and clean
+// Generates perlin noise used for terrain generation.
 type NoiseMapGenerator struct {
-	perm        []int
-	seed        int64
+	perm []int
+	seed int64
+}
+
+// Configurers a 3D generation.
+type NoiseConfig3D struct {
+	f           func(noise float32, i, j, k int) float32
 	octaves     int
+	position    mgl32.Vec3
+	scale       float32
 	persistence float32
 	lacunarity  float32
+	width       float32
+	height      float32
+	depth       float32
+	normalize   bool
+}
+
+// Configurers a 2D generation.
+type NoiseConfig2D struct {
+	f           func(noise float32, i, j int) float32
+	octaves     int
+	position    mgl32.Vec2
+	scale       float32
+	persistence float32
+	lacunarity  float32
+	width       float32
+	height      float32
+	normalize   bool
 }
 
 func newNoiseMapGenerator() *NoiseMapGenerator {
-	return &NoiseMapGenerator{
-		octaves:     1,
-		persistence: 1,
-		lacunarity:  1,
-	}
+	return &NoiseMapGenerator{}
 }
 
-func (n *NoiseMapGenerator) SetOctaves(octaves int, persistence, lacunarity float32) {
-	n.octaves = octaves
-	n.persistence = persistence
-	n.lacunarity = lacunarity
-}
-
-func (n *NoiseMapGenerator) Generate3D(width, depth, height int, scale float32, normalize bool, f func(noise float32, i, j, k int) float32) [][][]float32 {
-	o := make([][][]float32, 0)
-	for i := 0; i < width; i++ {
-		o = append(o, make([][]float32, 0))
-		for j := 0; j < height; j++ {
-			o[i] = append(o[i], make([]float32, 0))
-			for k := 0; k < depth; k++ {
-				noise := n.octaveNoise3D(float32(i), float32(j), float32(k), scale)
-				if normalize {
-					noise += 1
-					noise /= 2
-				}
-				if f != nil {
-					noise = f(noise, i, j, k)
-				}
-				o[i][j] = append(o[i][j], noise)
-			}
-		}
-	}
-	return o
-}
-
-func (n *NoiseMapGenerator) Generate2D(width, depth int, scale float32, normalize bool, f func(noise float32, i, j int) float32) [][]float32 {
-	o := make([][]float32, 0)
-	for i := 0; i < depth; i++ {
-		o = append(o, make([]float32, 0))
-		for j := 0; j < width; j++ {
-			noise := n.octaveNoise2D(float32(j), float32(i), scale)
-			if normalize {
-				noise += 1
-				noise /= 2
-			}
-			if f != nil {
-				noise = f(noise, i, j)
-			}
-			o[i] = append(o[i], noise)
-		}
-	}
-	return o
-}
-
+// Seeds the generator by creating a permutation table.
 func (n *NoiseMapGenerator) Seed(seed int64) {
 	n.seed = seed
 	n.perm = n.generatePermutation(seed)
 }
 
-func (n *NoiseMapGenerator) octaveNoise3D(x, y, z, scale float32) float32 {
+// Generates a 3D noise map with the given configuration.
+func (n *NoiseMapGenerator) Generate3D(config NoiseConfig3D) [][][]float32 {
+	o := make([][][]float32, 0)
+	idx := 0
+	for i := int(floor(config.position.X())); i < int(floor(config.width+config.position.X())); i++ {
+		o = append(o, make([][]float32, 0))
+		jdx := 0
+		for j := int(floor(config.position.Y())); j < int(floor(config.height+config.position.Y())); j++ {
+			o[idx] = append(o[idx], make([]float32, 0))
+			kdx := 0
+			for k := int(floor(config.position.Z())); k < int(floor(config.depth+config.position.Z())); k++ {
+				noise := n.octaveNoise3D(
+					float32(i),
+					float32(j),
+					float32(k),
+					config.scale,
+					config.persistence,
+					config.lacunarity,
+					config.octaves,
+				)
+
+				if config.normalize {
+					noise += 1
+					noise /= 2
+				}
+				if config.f != nil {
+					noise = config.f(noise, idx, jdx, kdx)
+				}
+				o[idx][jdx] = append(o[idx][jdx], noise)
+				kdx++
+			}
+			jdx++
+		}
+		idx++
+	}
+	return o
+}
+
+// Generates a 2D noise map with the given configuration.
+func (n *NoiseMapGenerator) Generate2D(config NoiseConfig2D) [][]float32 {
+	idx := 0
+	jdx := 0
+	o := make([][]float32, 0)
+	for i := int(floor(config.position.X())); i < int(floor(config.width+config.position.X())); i++ {
+		o = append(o, make([]float32, 0))
+		jdx = 0
+		for j := int(floor(config.position.Y())); j < int(floor(config.height+config.position.Y())); j++ {
+			noise := n.octaveNoise2D(
+				float32(j),
+				float32(i),
+				config.scale,
+				config.persistence,
+				config.lacunarity,
+				config.octaves,
+			)
+
+			if config.normalize {
+				noise += 1
+				noise /= 2
+			}
+			if config.f != nil {
+				noise = config.f(noise, idx, jdx)
+			}
+			o[idx] = append(o[idx], noise)
+			jdx++
+		}
+		idx++
+	}
+	return o
+}
+
+// Wrapper over perlinNoise3D to compute noise from octaves, persistence and lacunarity.
+func (n *NoiseMapGenerator) octaveNoise3D(x, y, z, scale, persistence, lacunarity float32, octaves int) float32 {
 	total := float32(0)
 	frequency := float32(1)
 	amplitude := float32(1)
 	maxValue := float32(0)
 
-	for i := 0; i < n.octaves; i++ {
+	for i := 0; i < octaves; i++ {
 		total += n.perlinNoise3D(x*scale*frequency, y*scale*frequency, z*scale*frequency, n.perm) * amplitude
 
 		maxValue += amplitude
-		amplitude *= n.persistence
-		frequency *= n.lacunarity
+		amplitude *= persistence
+		frequency *= lacunarity
 	}
 
 	return total / maxValue
 }
 
-func (n *NoiseMapGenerator) octaveNoise2D(x, y, scale float32) float32 {
+// Wrapper over perlinNoise2D to compute noise from octaves, persistence and lacunarity.
+func (n *NoiseMapGenerator) octaveNoise2D(x, y, scale, persistence, lacunarity float32, octaves int) float32 {
 	total := float32(0)
 	frequency := float32(1)
 	amplitude := float32(1)
 	maxValue := float32(0)
 
-	for i := 0; i < n.octaves; i++ {
+	for i := 0; i < octaves; i++ {
 		total += n.perlinNoise2D(x*scale*frequency, y*scale*frequency, n.perm) * amplitude
 		maxValue += amplitude
-		amplitude *= n.persistence
-		frequency *= n.lacunarity
+		amplitude *= persistence
+		frequency *= lacunarity
 	}
 
 	return total / maxValue
 }
 
 func (n *NoiseMapGenerator) perlinNoise3D(x, y, z float32, perm []int) float32 {
-	// Find unit grid cell containing point
+	// get grid point
 	x0 := floor(x)
 	y0 := floor(y)
 	z0 := floor(z)
 
-	// Relative coordinates within grid cell
+	// offset in grid cell
 	relX := x - x0
 	relY := y - y0
 	relZ := z - z0
 
-	// Wrap the integer grid points (for permutation table lookup)
+	// fade curves for each coordinate
+	u := fade(relX)
+	v := fade(relY)
+	w := fade(relZ)
+
+	// wrap index to allow looking up into permutation
 	x0i := int(x0) & 255
 	y0i := int(y0) & 255
 	z0i := int(z0) & 255
 
-	// Gradient hashes for the eight cube corners
+	// hash the cube corners (8 corners)
 	h000 := perm[perm[perm[x0i]+y0i]+z0i]
 	h001 := perm[perm[perm[x0i]+y0i]+z0i+1]
 	h010 := perm[perm[perm[x0i]+y0i+1]+z0i]
@@ -132,7 +186,7 @@ func (n *NoiseMapGenerator) perlinNoise3D(x, y, z float32, perm []int) float32 {
 	h110 := perm[perm[perm[x0i+1]+y0i+1]+z0i]
 	h111 := perm[perm[perm[x0i+1]+y0i+1]+z0i+1]
 
-	// Gradient contributions
+	// get gradients for corners
 	g000 := n.grad3D(h000, relX, relY, relZ)
 	g001 := n.grad3D(h001, relX, relY, relZ-1)
 	g010 := n.grad3D(h010, relX, relY-1, relZ)
@@ -142,61 +196,58 @@ func (n *NoiseMapGenerator) perlinNoise3D(x, y, z float32, perm []int) float32 {
 	g110 := n.grad3D(h110, relX-1, relY-1, relZ)
 	g111 := n.grad3D(h111, relX-1, relY-1, relZ-1)
 
-	// Fade curves for each coordinate
-	u := n.fade(relX)
-	v := n.fade(relY)
-	w := n.fade(relZ)
+	// lerp along x, then y, then z
+	lx00 := lerp(u, g000, g100)
+	lx01 := lerp(u, g001, g101)
+	lx10 := lerp(u, g010, g110)
+	lx11 := lerp(u, g011, g111)
 
-	// Interpolate along x, then y, then z
-	lx00 := n.lerp(u, g000, g100)
-	lx01 := n.lerp(u, g001, g101)
-	lx10 := n.lerp(u, g010, g110)
-	lx11 := n.lerp(u, g011, g111)
+	ly0 := lerp(v, lx00, lx10)
+	ly1 := lerp(v, lx01, lx11)
 
-	ly0 := n.lerp(v, lx00, lx10)
-	ly1 := n.lerp(v, lx01, lx11)
-
-	return n.lerp(w, ly0, ly1)
+	return lerp(w, ly0, ly1)
 }
 
 func (n *NoiseMapGenerator) perlinNoise2D(x, y float32, perm []int) float32 {
+	// get grid corners
 	x0 := floor(x)
 	y0 := floor(y)
 	x1 := x0 + 1
 	y1 := y0 + 1
 
-	// Compute relative coordinates
+	// get offset
 	relX := x - x0
 	relY := y - y0
 
-	// Wrap coordinates to permutation table
+	// compute fade values
+	u := fade(relX)
+	v := fade(relY)
+
+	// wrap index to allow looking up into permutation
 	x0i := int(x0) & 255
 	y0i := int(y0) & 255
 	x1i := int(x1) & 255
 	y1i := int(y1) & 255
 
-	// Calculate hash values
+	// hash grid corners
 	h00 := perm[perm[x0i]+y0i]
 	h10 := perm[perm[x1i]+y0i]
 	h01 := perm[perm[x0i]+y1i]
 	h11 := perm[perm[x1i]+y1i]
 
-	// Compute gradients
+	// compute gradients
 	g00 := n.grad2D(h00, relX, relY)
 	g10 := n.grad2D(h10, relX-1, relY)
 	g01 := n.grad2D(h01, relX, relY-1)
 	g11 := n.grad2D(h11, relX-1, relY-1)
 
-	// Compute fade values
-	u := n.fade(relX)
-	v := n.fade(relY)
-
-	// Interpolate
-	lx0 := n.lerp(u, g00, g10)
-	lx1 := n.lerp(u, g01, g11)
-	return n.lerp(v, lx0, lx1)
+	// lerp
+	lx0 := lerp(u, g00, g10)
+	lx1 := lerp(u, g01, g11)
+	return lerp(v, lx0, lx1)
 }
 
+// Generates permutation table from a given seed.
 func (n *NoiseMapGenerator) generatePermutation(seed int64) []int {
 	perm := make([]int, 256)
 	for i := range perm {
@@ -211,14 +262,7 @@ func (n *NoiseMapGenerator) generatePermutation(seed int64) []int {
 	return append(perm, perm...)
 }
 
-func (n *NoiseMapGenerator) fade(t float32) float32 {
-	return t * t * t * (t*(t*6-15) + 10)
-}
-
-func (n *NoiseMapGenerator) lerp(t, a, b float32) float32 {
-	return a + t*(b-a)
-}
-
+// Returns a gradient based on the input hash in a pseudo-random but repeatable way.
 func (n *NoiseMapGenerator) grad3D(hash int, x, y, z float32) float32 {
 	switch hash & 0xF {
 	case 0x0:
@@ -258,6 +302,7 @@ func (n *NoiseMapGenerator) grad3D(hash int, x, y, z float32) float32 {
 	}
 }
 
+// Returns a gradient based on the input hash in a pseudo-random but repeatable way.
 func (n *NoiseMapGenerator) grad2D(hash int, x, y float32) float32 {
 	h := hash & 3
 	u := x

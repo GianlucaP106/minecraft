@@ -87,6 +87,7 @@ func (g *Game) Run() {
 		g.HanldleFly()
 		g.LookBlock()
 		g.HandleInventorySelect()
+		g.world.SpawnRadius(g.player.body.position)
 
 		delta := g.clock.Delta()
 		g.physics.Tick(delta)
@@ -97,7 +98,10 @@ func (g *Game) Run() {
 				// if a block is being looked at in this chunk
 				target = g.target
 			}
-			c.Draw(target, g.player.camera.Mat())
+
+			if g.player.Sees(c.pos) {
+				c.Draw(target, g.player.camera.Mat())
+			}
 		}
 
 		// draw cross hair

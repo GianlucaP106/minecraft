@@ -13,7 +13,7 @@ type Chunk struct {
 	shader *Shader
 
 	// blocks in the chunk, position determined by index in array
-	blocks [chunkSize][chunkSize][chunkSize]*Block
+	blocks [chunkWidth][chunkHeight][chunkWidth]*Block
 
 	// total count of vertices in the chunk
 	vertCount int
@@ -25,25 +25,44 @@ type Chunk struct {
 	vao, vbo uint32
 }
 
-const chunkSize = 16
+type BlockTypes [chunkWidth][chunkHeight][chunkWidth]string
 
-func newChunk(shader *Shader, atlas *TextureAtlas, initialPos mgl32.Vec3) *Chunk {
+func newBlockTypes() BlockTypes {
+	return [chunkWidth][chunkHeight][chunkWidth]string{}
+}
+
+const (
+	// chunkSize   = 16
+	chunkWidth  = 16
+	chunkHeight = 256
+)
+
+func newChunk(shader *Shader, atlas *TextureAtlas, pos mgl32.Vec3) *Chunk {
 	c := &Chunk{}
 	c.shader = shader
-	c.pos = initialPos
+	c.pos = pos
 	c.atlas = atlas
 	return c
 }
 
 // Initialize the chunk metadata on the GPU.
 // Sets the given block to be active as the first block.
-func (c *Chunk) Init() {
+func (c *Chunk) Init(types BlockTypes) {
 	gl.UseProgram(c.shader.handle)
-	for i2 := 0; i2 < chunkSize; i2++ {
-		for j2 := 0; j2 < chunkSize; j2++ {
-			for k2 := 0; k2 < chunkSize; k2++ {
+	for i2 := 0; i2 < chunkWidth; i2++ {
+		for j2 := 0; j2 < chunkHeight; j2++ {
+			for k2 := 0; k2 < chunkWidth; k2++ {
 				b := newBlock(c, i2, j2, k2, "bedrock")
 				c.blocks[i2][j2][k2] = b
+
+				t := types[i2][j2][k2]
+				if t != "" {
+					b.active = true
+					b.blockType = t
+				} else {
+					b.active = false
+				}
+
 			}
 		}
 	}
@@ -65,6 +84,14 @@ func (c *Chunk) Init() {
 
 	textureUniform := gl.GetUniformLocation(c.shader.handle, gl.Str("tex\x00"))
 	gl.Uniform1i(textureUniform, 0)
+}
+
+// Deletes buffers from gpu.
+func (c *Chunk) Destroy() {
+	gl.DeleteBuffers(1, &c.vbo)
+	c.vbo = 0
+	gl.DeleteVertexArrays(1, &c.vao)
+	c.vao = 0
 }
 
 // Sends the chunks vertices to GPU.
@@ -93,7 +120,7 @@ func (c *Chunk) Buffer() {
 				// TODO: consider special block types (i.e. leaves)
 				var excludeFaces [6]bool
 				checkExclude := func(i, j, k int, face Direction) {
-					if i < 0 || i >= chunkSize || j < 0 || j >= chunkSize || k < 0 || k >= chunkSize {
+					if i < 0 || i >= chunkWidth || j < 0 || j >= chunkHeight || k < 0 || k >= chunkWidth {
 						return
 					}
 
@@ -172,42 +199,4 @@ func (c *Chunk) Draw(target *TargetBlock, view mgl32.Mat4) {
 
 	// final draw call for chunk
 	gl.DrawArrays(gl.TRIANGLES, 0, int32(c.vertCount))
-}
-
-// Returns the bounding box of the whole chunk.
-func (c *Chunk) BoundingBox() Box {
-	min := mgl32.Vec3(c.pos)
-	const chunkBlockSize = chunkSize * blockSize
-	max := c.pos.Add(mgl32.Vec3{
-		chunkBlockSize,
-		chunkBlockSize,
-		chunkBlockSize,
-	})
-	return newBox(min, max)
-}
-
-// Returns the "active" blocks in the chunk.
-func (c *Chunk) ActiveBlocks() []*Block {
-	out := make([]*Block, 0)
-	for _, b := range c.AllBlocks() {
-		if b != nil && b.active {
-			out = append(out, b)
-		}
-	}
-	return out
-}
-
-// Returns all blocks.
-func (c *Chunk) AllBlocks() []*Block {
-	out := make([]*Block, 0)
-	for _, layer := range c.blocks {
-		for _, row := range layer {
-			for _, block := range row {
-				if block != nil {
-					out = append(out, block)
-				}
-			}
-		}
-	}
-	return out
 }

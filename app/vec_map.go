@@ -31,6 +31,11 @@ func (v *VecMap[T]) Set(p mgl32.Vec3, t *T) {
 	v.m[key] = t
 }
 
+func (v *VecMap[T]) Delete(p mgl32.Vec3) {
+	key := v.serialize(p)
+	delete(v.m, key)
+}
+
 func (v *VecMap[T]) All() []*T {
 	out := make([]*T, 0)
 	for _, v := range v.m {

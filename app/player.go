@@ -23,7 +23,7 @@ const (
 
 func newPlayer() *Player {
 	p := &Player{}
-	p.camera = newCamera(mgl32.Vec3{10, 200, 1})
+	p.camera = newCamera(mgl32.Vec3{100, 150, 100})
 	p.body = &RigidBody{
 		position: p.camera.pos,
 		mass:     playerMass,
@@ -78,4 +78,10 @@ func (p *Player) Movement(forward, right float32) mgl32.Vec3 {
 	}
 
 	return movement.Mul(playerSpeed)
+}
+
+// Returns true if passed pos is in view.
+// TODO:
+func (p *Player) Sees(pos mgl32.Vec3) bool {
+	return true
 }
