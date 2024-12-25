@@ -104,7 +104,7 @@ func (g *Game) Run() {
 			}
 
 			if g.player.Sees(c.pos) {
-				c.Draw(target, g.player.camera.Mat())
+				c.Draw(target, g.player.camera)
 			}
 		}
 

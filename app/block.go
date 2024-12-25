@@ -29,7 +29,7 @@ func newBlock(chunk *Chunk, i, j, k int, blockType string) *Block {
 	return b
 }
 
-func (b *Block) Vertices(excludeFaces [6]bool) ([]mgl32.Vec3, []mgl32.Vec2) {
+func (b *Block) Vertices(excludeFaces [6]bool) ([]mgl32.Vec3, []mgl32.Vec3, []mgl32.Vec2) {
 	type Vertex struct {
 		pos mgl32.Vec3
 		tex mgl32.Vec2
@@ -82,6 +82,7 @@ func (b *Block) Vertices(excludeFaces [6]bool) ([]mgl32.Vec3, []mgl32.Vec2) {
 
 	verts := make([]mgl32.Vec3, 0)
 	texCoords := make([]mgl32.Vec2, 0)
+	norms := make([]mgl32.Vec3, 0)
 	for i := range directions {
 		if excludeFaces[i] {
 			continue
@@ -89,13 +90,15 @@ func (b *Block) Vertices(excludeFaces [6]bool) ([]mgl32.Vec3, []mgl32.Vec2) {
 
 		dir := Direction(i)
 		faceVertices := getQuadVertices(dir)
+		norm := directions[dir]
 
 		for _, face := range faceVertices {
 			texCoords = append(texCoords, face.tex)
 			verts = append(verts, face.pos.Mul(0.5))
+			norms = append(norms, norm)
 		}
 	}
-	return verts, texCoords
+	return verts, norms, texCoords
 }
 
 // Returns the world position of the block.

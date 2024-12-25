@@ -37,12 +37,6 @@ func (c *Camera) Mat() mgl32.Mat4 {
 	return c.projection.Mul4(view)
 }
 
-// Returns the transformation view matrix to a apply to world postioned vertices.
-func (c *Camera) View() mgl32.Mat4 {
-	view := mgl32.LookAtV(c.pos, c.pos.Add(c.view), c.up)
-	return view
-}
-
 // Returns the cross vector: view x up.
 func (c *Camera) cross() mgl32.Vec3 {
 	return c.view.Cross(c.up)

@@ -76,11 +76,16 @@ func (c *Chunk) Init(types BlockTypes) {
 	// configure the attributes
 	vertAttrib := uint32(gl.GetAttribLocation(c.shader.handle, gl.Str("vert\x00")))
 	gl.EnableVertexAttribArray(vertAttrib)
-	gl.VertexAttribPointerWithOffset(vertAttrib, 3, gl.FLOAT, false, 5*4, 0)
+	gl.VertexAttribPointerWithOffset(vertAttrib, 3, gl.FLOAT, false, 8*4, 0)
+
+	// configure the attributes
+	normAttrib := uint32(gl.GetAttribLocation(c.shader.handle, gl.Str("normal\x00")))
+	gl.EnableVertexAttribArray(normAttrib)
+	gl.VertexAttribPointerWithOffset(normAttrib, 3, gl.FLOAT, false, 8*4, 3*4)
 
 	texAttrib := uint32(gl.GetAttribLocation(c.shader.handle, gl.Str("texCoord\x00")))
 	gl.EnableVertexAttribArray(texAttrib)
-	gl.VertexAttribPointerWithOffset(texAttrib, 2, gl.FLOAT, false, 5*4, 3*4)
+	gl.VertexAttribPointerWithOffset(texAttrib, 2, gl.FLOAT, false, 8*4, 6*4)
 
 	textureUniform := gl.GetUniformLocation(c.shader.handle, gl.Str("tex\x00"))
 	gl.Uniform1i(textureUniform, 0)
@@ -138,9 +143,10 @@ func (c *Chunk) Buffer() {
 
 				// translate vertices to respective pos in chunk
 				translate := block.Translate()
-				verts, texCoords := block.Vertices(excludeFaces)
+				verts, norms, texCoords := block.Vertices(excludeFaces)
 				for idx, vert := range verts {
 					coords := texCoords[idx]
+					norm := norms[idx]
 					c.vertCount++
 
 					pos := translate.Mul4x1(vert.Vec4(1))
@@ -149,6 +155,9 @@ func (c *Chunk) Buffer() {
 					chunk = append(chunk,
 						// pos
 						pos.X(), pos.Y(), pos.Z(),
+
+						// norm vector
+						norm.X(), norm.Y(), norm.Z(),
 
 						// texture
 						coords.X(), coords.Y(),
@@ -166,7 +175,7 @@ func (c *Chunk) Buffer() {
 
 // Draws the chunk from the perspective of the provided camera.
 // Sets the "lookedAtBlock" to be the provided target block.
-func (c *Chunk) Draw(target *TargetBlock, view mgl32.Mat4) {
+func (c *Chunk) Draw(target *TargetBlock, camera *Camera) {
 	gl.UseProgram(c.shader.handle)
 	gl.BindVertexArray(c.vao)
 
@@ -177,9 +186,20 @@ func (c *Chunk) Draw(target *TargetBlock, view mgl32.Mat4) {
 	modelUniform := gl.GetUniformLocation(c.shader.handle, gl.Str("model\x00"))
 	gl.UniformMatrix4fv(modelUniform, 1, false, &model[0])
 
-	// attach view to uniform
+	// attach view matrix to uniform
 	viewUniform := gl.GetUniformLocation(c.shader.handle, gl.Str("view\x00"))
+	view := camera.Mat()
 	gl.UniformMatrix4fv(viewUniform, 1, false, &view[0])
+
+	// attach view position to uniform
+	viewPosUniform := gl.GetUniformLocation(c.shader.handle, gl.Str("cameraPos\x00"))
+	gl.Uniform3fv(viewPosUniform, 1, &camera.pos[0])
+
+	// attach world light position
+	// TODO: generalize
+	lightPos := mgl32.Vec3{0, 200, 0}
+	lightPosUniform := gl.GetUniformLocation(c.shader.handle, gl.Str("lightPos\x00"))
+	gl.Uniform3fv(lightPosUniform, 1, &lightPos[0])
 
 	// attach lookedAtBlock which determines which block is being locked at in the chunk
 	isLooking := 0
