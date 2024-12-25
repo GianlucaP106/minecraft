@@ -60,7 +60,7 @@ func (n *NoiseMapGenerator) Generate3D(config NoiseConfig3D) [][][]float32 {
 			o[idx] = append(o[idx], make([]float32, 0))
 			kdx := 0
 			for k := int(floor(config.position.Z())); k < int(floor(config.depth+config.position.Z())); k++ {
-				noise := n.octaveNoise3D(
+				noise := n.OctaveNoise3D(
 					float32(i),
 					float32(j),
 					float32(k),
@@ -68,12 +68,9 @@ func (n *NoiseMapGenerator) Generate3D(config NoiseConfig3D) [][][]float32 {
 					config.persistence,
 					config.lacunarity,
 					config.octaves,
+					config.normalize,
 				)
 
-				if config.normalize {
-					noise += 1
-					noise /= 2
-				}
 				if config.f != nil {
 					noise = config.f(noise, idx, jdx, kdx)
 				}
@@ -96,19 +93,15 @@ func (n *NoiseMapGenerator) Generate2D(config NoiseConfig2D) [][]float32 {
 		o = append(o, make([]float32, 0))
 		jdx = 0
 		for j := int(floor(config.position.Y())); j < int(floor(config.height+config.position.Y())); j++ {
-			noise := n.octaveNoise2D(
+			noise := n.OctaveNoise2D(
 				float32(j),
 				float32(i),
 				config.scale,
 				config.persistence,
 				config.lacunarity,
 				config.octaves,
+				config.normalize,
 			)
-
-			if config.normalize {
-				noise += 1
-				noise /= 2
-			}
 			if config.f != nil {
 				noise = config.f(noise, idx, jdx)
 			}
@@ -121,7 +114,7 @@ func (n *NoiseMapGenerator) Generate2D(config NoiseConfig2D) [][]float32 {
 }
 
 // Wrapper over perlinNoise3D to compute noise from octaves, persistence and lacunarity.
-func (n *NoiseMapGenerator) octaveNoise3D(x, y, z, scale, persistence, lacunarity float32, octaves int) float32 {
+func (n *NoiseMapGenerator) OctaveNoise3D(x, y, z, scale, persistence, lacunarity float32, octaves int, normalize bool) float32 {
 	total := float32(0)
 	frequency := float32(1)
 	amplitude := float32(1)
@@ -135,11 +128,16 @@ func (n *NoiseMapGenerator) octaveNoise3D(x, y, z, scale, persistence, lacunarit
 		frequency *= lacunarity
 	}
 
-	return total / maxValue
+	out := total / maxValue
+	if normalize {
+		out += 1
+		out /= 2
+	}
+	return out
 }
 
 // Wrapper over perlinNoise2D to compute noise from octaves, persistence and lacunarity.
-func (n *NoiseMapGenerator) octaveNoise2D(x, y, scale, persistence, lacunarity float32, octaves int) float32 {
+func (n *NoiseMapGenerator) OctaveNoise2D(x, y, scale, persistence, lacunarity float32, octaves int, normalize bool) float32 {
 	total := float32(0)
 	frequency := float32(1)
 	amplitude := float32(1)
@@ -152,7 +150,12 @@ func (n *NoiseMapGenerator) octaveNoise2D(x, y, scale, persistence, lacunarity f
 		frequency *= lacunarity
 	}
 
-	return total / maxValue
+	out := total / maxValue
+	if normalize {
+		out += 1
+		out /= 2
+	}
+	return out
 }
 
 func (n *NoiseMapGenerator) perlinNoise3D(x, y, z float32, perm []int) float32 {

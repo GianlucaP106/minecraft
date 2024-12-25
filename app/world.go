@@ -58,6 +58,7 @@ func (w *World) Init() {
 
 // Spawns a new chunk at the given position.
 // The param should a be a "valid" chunk position.
+// TODO: spawn "default" chunk
 func (w *World) SpawnChunk(pos mgl32.Vec3) *Chunk {
 	if int(pos.X())%chunkWidth != 0 ||
 		int(pos.Y())%chunkHeight != 0 ||
@@ -70,7 +71,10 @@ func (w *World) SpawnChunk(pos mgl32.Vec3) *Chunk {
 	w.chunks.Set(pos, chunk)
 	s := w.generator.Terrain(chunk.pos)
 	chunk.Init(s)
+
+	// FIXME: causes stack overflow
 	w.SpawnTrees(chunk)
+
 	chunk.Buffer()
 	return chunk
 }
@@ -82,6 +86,7 @@ func (w *World) DespawnChunk(c *Chunk) {
 
 // Spawns tress on a chunk.
 func (w *World) SpawnTrees(chunk *Chunk) {
+	biome := w.generator.Biome(mgl32.Vec2{chunk.pos.X(), chunk.pos.Z()})
 	trunkHeight := float32(7.0)
 	width := float32(5.0)
 	leavesHeight := float32(5.0)
@@ -89,18 +94,31 @@ func (w *World) SpawnTrees(chunk *Chunk) {
 	fallout := w.generator.TreeFallout(width, leavesHeight, width)
 	for x, dist := range trees {
 		for z, prob := range dist {
-			if prob <= 0.475 {
+			if prob <= 0.875 {
 				continue
 			}
 
 			b := w.Ground(chunk.pos.X()+float32(x), chunk.pos.Z()+float32(z))
+			if b == nil {
+				continue
+			}
+
 			base := b.WorldPos()
 
 			// trunk
 			for i := 1; i < int(trunkHeight); i++ {
 				block := w.Block(base.Add(mgl32.Vec3{0, float32(i), 0}))
 				block.active = true
-				block.blockType = "wood"
+				if biome < 0.4 {
+					block.blockType = "cactus"
+				} else {
+					block.blockType = "wood"
+				}
+			}
+
+			// dont draw leaves
+			if biome <= 0.4 {
+				continue
 			}
 
 			// leaves

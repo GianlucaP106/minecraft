@@ -14,16 +14,20 @@ type Game struct {
 	shaders  *ShaderManager
 	textures *TextureManager
 
-	// game entities
+	// main player
 	player *Player
-	world  *World
+
+	// world spawns and despawns entities
+	world *World
 
 	// block the player is currently looking at
 	target *TargetBlock
 
 	// crosshair shows a cross on the screen
 	crosshair *Crosshair
-	hotbar    *Hotbar
+
+	// hotbar displays inventory bar
+	hotbar *Hotbar
 
 	// provides time delta for game loop
 	clock *Clock
