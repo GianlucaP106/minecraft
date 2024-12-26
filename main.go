@@ -1,7 +1,7 @@
 package main
 
-import "minecraft/app"
+import "minecraft/game"
 
 func main() {
-	app.Start()
+	game.Start()
 }

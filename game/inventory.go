@@ -1,4 +1,4 @@
-package app
+package game
 
 type Inventory struct {
 	// maps the blockType to count

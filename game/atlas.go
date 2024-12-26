@@ -1,4 +1,4 @@
-package app
+package game
 
 type TextureAtlas struct {
 	texture *Texture

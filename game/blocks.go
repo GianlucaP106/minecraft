@@ -1,4 +1,4 @@
-package app
+package game
 
 var blocks = map[string][6][2]int{
 	"bedrock": {
