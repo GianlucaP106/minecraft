@@ -99,7 +99,7 @@ func (c *Chunk) Destroy() {
 }
 
 // Sends the chunks vertices to GPU.
-func (c *Chunk) Buffer() {
+func (c *Chunk) Buffer2() {
 	// bind to the vbo
 	gl.BindBuffer(gl.ARRAY_BUFFER, c.vbo)
 
@@ -115,13 +115,8 @@ func (c *Chunk) Buffer() {
 					continue
 				}
 
-				// TODO: move to World not to recompute translatation
-				// this involves precomputing the vertices for all blocks in chunk once,
-				// storing these vertices in the ChunkRenderer instead of computing them at each buffer call
-
 				// get vertices for visible excludeFaces only
-				// TODO: consider other chunks as well
-				// TODO: consider special block types (i.e. leaves)
+				// TODO: consider other chunks and special block types (i.e. leaves) as well
 				var excludeFaces [6]bool
 				checkExclude := func(i, j, k int, face Direction) {
 					if i < 0 || i >= chunkWidth || j < 0 || j >= chunkHeight || k < 0 || k >= chunkWidth {
@@ -160,6 +155,66 @@ func (c *Chunk) Buffer() {
 
 						// texture
 						coords.X(), coords.Y(),
+					)
+				}
+			}
+		}
+	}
+
+	// send vertices to gpu
+	if len(chunk) > 0 {
+		gl.BufferData(gl.ARRAY_BUFFER, len(chunk)*4, gl.Ptr(chunk), gl.DYNAMIC_DRAW)
+	}
+}
+
+// Sends the chunks vertices to GPU.
+func (c *Chunk) Buffer() {
+	// bind to the vbo
+	gl.BindBuffer(gl.ARRAY_BUFFER, c.vbo)
+
+	// reset vertCount
+	c.vertCount = 0
+
+	// start building chunk
+	chunk := make([]float32, 0)
+	for i, layer := range c.blocks {
+		for j, row := range layer {
+			for k, block := range row {
+				if block == nil || !block.active {
+					continue
+				}
+
+				// get vertices for visible excludeFaces only
+				// TODO: consider other chunks and special block types (i.e. leaves) as well
+				var excludeFaces [6]bool
+				checkExclude := func(i, j, k int, face Direction) {
+					if i < 0 || i >= chunkWidth || j < 0 || j >= chunkHeight || k < 0 || k >= chunkWidth {
+						return
+					}
+
+					b := c.blocks[i][j][k]
+					if b.active {
+						excludeFaces[face] = true
+					}
+				}
+				checkExclude(i, j, k+1, south)
+				checkExclude(i, j, k-1, north)
+				checkExclude(i, j+1, k, up)
+				checkExclude(i, j-1, k, down)
+				checkExclude(i-1, j, k, west)
+				checkExclude(i+1, j, k, east)
+
+				for _, vertex := range block.Vertices2(excludeFaces) {
+					c.vertCount++
+					chunk = append(chunk,
+						// pos
+						vertex.pos.X(), vertex.pos.Y(), vertex.pos.Z(),
+
+						// norm vector
+						vertex.norm.X(), vertex.norm.Y(), vertex.norm.Z(),
+
+						// texture
+						vertex.tex.X(), vertex.tex.Y(),
 					)
 				}
 			}

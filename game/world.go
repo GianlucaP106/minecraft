@@ -31,7 +31,7 @@ const (
 	maxHeight = 200
 
 	// radius to draw
-	visibleRadius = 140.0
+	visibleRadius = 130.0
 
 	// radius to despawn
 	destroyRadius = 300.0

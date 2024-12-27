@@ -27,7 +27,10 @@ func (g *Game) LookBlock() {
 }
 
 func (g *Game) PlaceBlock() {
-	// FIXME: nil pointer happened here
+	if g.target == nil {
+		return
+	}
+
 	pos := g.target.block.WorldPos()
 	newPos := pos.Add(g.target.face.Direction())
 	block := g.world.Block(newPos)

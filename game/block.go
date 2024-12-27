@@ -18,6 +18,14 @@ type Block struct {
 	active bool
 }
 
+// TargetBlock holds captures the block being looked at.
+type TargetBlock struct {
+	block *Block
+
+	// the side that is being looked at
+	face Direction
+}
+
 const blockSize = 1
 
 func newBlock(chunk *Chunk, i, j, k int, blockType string) *Block {
@@ -101,6 +109,46 @@ func (b *Block) Vertices(excludeFaces [6]bool) ([]mgl32.Vec3, []mgl32.Vec3, []mg
 	return verts, norms, texCoords
 }
 
+func (b *Block) Vertices2(excludeFaces [6]bool) []TexturedVertex {
+	// get texture for this block
+	texs := blocks[b.blockType]
+
+	// helper to get texture coords by direction
+	getQuadTexCoords := func(direction Direction) [6]mgl32.Vec2 {
+		tex := texs[direction]
+		umin, umax, vmin, vmax := b.chunk.atlas.Coords(tex[0], tex[1])
+		quad := [6]mgl32.Vec2{
+			{umin, vmax}, // Bottom-left
+			{umax, vmax}, // Bottom-right
+			{umin, vmin}, // Top-left
+			{umax, vmax}, // Bottom-right
+			{umax, vmin}, // Top-right
+			{umin, vmin}, // Top-left
+		}
+
+		return quad
+	}
+
+	// get precomputed vertices and add textures to it
+	vertices := getPrecomputedVertices()
+	out := make([]TexturedVertex, 0)
+	for dirIdx, vertices := range vertices[b.i][b.j][b.k] {
+		face := Direction(dirIdx)
+		if excludeFaces[face] {
+			continue
+		}
+
+		texes := getQuadTexCoords(face)
+		for idx, v := range vertices {
+			out = append(out, TexturedVertex{
+				Vertex: v,
+				tex:    texes[idx],
+			})
+		}
+	}
+	return out
+}
+
 // Returns the world position of the block (center of the block).
 func (b *Block) WorldPos() mgl32.Vec3 {
 	return b.Translate().Mul4x1(b.chunk.pos.Vec4(1)).Vec3()
@@ -133,10 +181,12 @@ func (b *Block) Box() Box {
 	return newBox(min, max)
 }
 
-// TargetBlock holds captures the block being looked at.
-type TargetBlock struct {
-	block *Block
-
-	// the side that is being looked at
-	face Direction
+func getPrecomputedVertices() *[chunkWidth][chunkHeight][chunkWidth][6][6]Vertex {
+	if precomputedVertices == nil {
+		vs := computeVertices()
+		precomputedVertices = &vs
+	}
+	return precomputedVertices
 }
+
+var precomputedVertices *[chunkWidth][chunkHeight][chunkWidth][6][6]Vertex
