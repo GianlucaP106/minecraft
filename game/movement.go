@@ -11,11 +11,8 @@ const (
 )
 
 func (g *Game) HanldleFly() {
-	if g.window.IsPressed(glfw.KeyF) && !g.flyDebounce {
-		g.flyDebounce = true
+	if g.window.Debounce(glfw.KeyF) {
 		g.player.body.flying = !g.player.body.flying
-	} else if g.window.IsReleased(glfw.KeyF) {
-		g.flyDebounce = false
 	}
 }
 
@@ -27,11 +24,8 @@ func (g *Game) HandleJump() {
 		return
 	}
 
-	if g.window.IsPressed(glfw.KeySpace) && !g.jumpDebounce && g.player.body.grounded {
-		g.jumpDebounce = true
+	if g.window.Debounce(glfw.KeySpace) && g.player.body.grounded {
 		g.player.body.Jump()
-	} else if g.window.IsReleased(glfw.KeySpace) {
-		g.jumpDebounce = false
 	}
 }
 

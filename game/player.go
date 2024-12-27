@@ -81,8 +81,14 @@ func (p *Player) Movement(forward, right float32) mgl32.Vec3 {
 	return movement.Mul(playerSpeed)
 }
 
+// TODO: convert this to full frustrum cull
 func (p *Player) Sees(chunk *Chunk) bool {
-	frustrum := p.camera.Frustrum(visibleRadius)
+	frustrum := p.camera.Frustrum(far)
 	box := chunk.Box()
-	return frustrum.ContainsBox(box) || box.Distance(p.camera.pos) < playerRadius
+	for _, corner := range box.Corners() {
+		if frustrum.near.Distance(corner) >= 0 {
+			return true
+		}
+	}
+	return box.Distance(p.camera.pos) < playerRadius
 }

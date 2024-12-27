@@ -25,10 +25,11 @@ type Camera struct {
 }
 
 const (
-	fov    = 45.0
-	aspect = float32(windowWidth) / windowHeight
-	near   = 0.01
-	far    = 1000.0
+	fov     = 45.0
+	cullFov = 60.0
+	aspect  = float32(windowWidth) / windowHeight
+	near    = 0.01
+	far     = 1000.0
 )
 
 func newCamera(initialPos mgl32.Vec3) *Camera {
@@ -79,8 +80,9 @@ func (c *Camera) Look(screenX, screenY float32) {
 	c.view = rotation.Mul4x1(dir).Vec3().Normalize()
 }
 
+// FIXME: top/bottom is off
 func (c *Camera) Frustrum(distance float32) *Frustrum {
-	halfV := float32(float64(distance) * math.Tan(float64(mgl32.DegToRad(fov)*0.5)))
+	halfV := float32(float64(distance) * math.Tan(float64(mgl32.DegToRad(cullFov)*0.5)))
 	halfH := halfV * aspect
 	f := &Frustrum{}
 	farVec := c.view.Mul(distance)

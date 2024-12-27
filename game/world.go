@@ -31,10 +31,13 @@ const (
 	maxHeight = 200
 
 	// radius to draw
-	visibleRadius = 150.0
+	visibleRadius = 140.0
 
 	// radius to despawn
-	destroyRadius = 400.0
+	destroyRadius = 300.0
+
+	// number of chunks to spawn around player
+	playerSpawnRadius = 15
 )
 
 func newWorld(chunkShader *Shader, atlas *TextureAtlas) *World {
@@ -42,12 +45,12 @@ func newWorld(chunkShader *Shader, atlas *TextureAtlas) *World {
 	w.chunkShader = chunkShader
 	w.chunks = newVecMap[Chunk]()
 	w.atlas = atlas
-	w.generator = newWorldGenerator(919)
+	w.generator = newWorldGenerator(9190)
 	return w
 }
 
 func (w *World) Init() {
-	s := 15
+	s := playerSpawnRadius
 	for i := 0; i < s; i++ {
 		for j := 0; j < s; j++ {
 			p := mgl32.Vec3{float32(chunkWidth * i), 0, float32(chunkWidth * j)}

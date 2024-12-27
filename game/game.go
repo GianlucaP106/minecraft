@@ -41,10 +41,6 @@ type Game struct {
 
 	// physics engine for player movements and collisions
 	physics *PhysicsEngine
-
-	// TODO: find better place
-	jumpDebounce bool
-	flyDebounce  bool
 }
 
 func Start() {
@@ -121,16 +117,18 @@ func (g *Game) Run() {
 		g.hotbar.Draw()
 
 		for _, c := range g.world.NearChunks(g.player.body.position) {
+			// cull chunks that are not in view
+			if !g.player.Sees(c) {
+				continue
+			}
+
+			// if a block is being looked at in this chunk
 			var target *TargetBlock
 			if g.target != nil && g.target.block.chunk == c {
-				// if a block is being looked at in this chunk
 				target = g.target
 			}
 
-			// frustrum culling
-			if g.player.Sees(c) {
-				c.Draw(target, g.player.camera, g.light)
-			}
+			c.Draw(target, g.player.camera, g.light)
 		}
 
 		// window maintenance

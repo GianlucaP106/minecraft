@@ -11,6 +11,7 @@ import (
 // Thin wrapper over glfw.Window.
 type Window struct {
 	*glfw.Window
+	debounce map[glfw.Key]bool
 }
 
 const (
@@ -41,6 +42,7 @@ func newWindow() *Window {
 	}
 	window.SetInputMode(glfw.CursorMode, glfw.CursorDisabled)
 	w := &Window{}
+	w.debounce = make(map[glfw.Key]bool)
 	w.Window = window
 	return w
 }
@@ -55,4 +57,15 @@ func (w *Window) IsPressed(k glfw.Key) bool {
 
 func (w *Window) IsReleased(k glfw.Key) bool {
 	return w.GetKey(k) == glfw.Release
+}
+
+func (w *Window) Debounce(k glfw.Key) bool {
+	debounce := w.debounce[k]
+	if w.IsPressed(k) && !debounce {
+		w.debounce[k] = true
+		return true
+	} else if w.IsReleased(k) {
+		delete(w.debounce, k)
+	}
+	return false
 }
