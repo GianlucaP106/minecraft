@@ -25,11 +25,15 @@ type Camera struct {
 }
 
 const (
-	fov     = 45.0
-	cullFov = 60.0
-	aspect  = float32(windowWidth) / windowHeight
-	near    = 0.01
-	far     = 1000.0
+	// limits
+	fov        = 45.0
+	cullFov    = 60.0
+	near       = 0.01
+	far        = 1000.0
+	pitchLimit = 0.99
+
+	// dimensions
+	aspect = float32(windowWidth) / windowHeight
 )
 
 func newCamera(initialPos mgl32.Vec3) *Camera {
@@ -54,7 +58,6 @@ func (c *Camera) cross() mgl32.Vec3 {
 
 // Orients the camera based on the new screenX and screenY params.
 // Camera holds the prevScreenX and prevScreenY which are used to obtain a delta.
-// TODO: enure there is no gimbal lock (limit pitch and yaw)
 func (c *Camera) Look(screenX, screenY float32) {
 	deltaX := -screenX + c.prevScreenX
 	deltaY := screenY - c.prevScreenY
@@ -63,6 +66,12 @@ func (c *Camera) Look(screenX, screenY float32) {
 
 	var sensitivityX float32 = 0.1
 	var sensitivityY float32 = 0.05
+
+	if (c.view.Dot(mgl32.Vec3{0, 1, 0}) >= pitchLimit && deltaY < 0) ||
+		(c.view.Dot(mgl32.Vec3{0, 1, 0}) <= -pitchLimit && deltaY > 0) {
+		// zero out y movement to limit pitch
+		sensitivityY = 0
+	}
 
 	// get the rotation for X and Y then combine them
 	rotationX := mgl32.HomogRotate3D(sensitivityX*mgl32.DegToRad(deltaX), c.up)
@@ -80,12 +89,13 @@ func (c *Camera) Look(screenX, screenY float32) {
 	c.view = rotation.Mul4x1(dir).Vec3().Normalize()
 }
 
+// Returns a frustrum used for culling.
 // FIXME: top/bottom is off
-func (c *Camera) Frustrum(distance float32) *Frustrum {
-	halfV := float32(float64(distance) * math.Tan(float64(mgl32.DegToRad(cullFov)*0.5)))
+func (c *Camera) Frustrum() *Frustrum {
+	halfV := float32(far * math.Tan(float64(mgl32.DegToRad(cullFov)*0.5)))
 	halfH := halfV * aspect
 	f := &Frustrum{}
-	farVec := c.view.Mul(distance)
+	farVec := c.view.Mul(far)
 	upVec := c.up.Mul(halfV)
 	right := c.cross()
 	rightVec := c.cross().Mul(halfH)

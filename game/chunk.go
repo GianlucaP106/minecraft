@@ -5,11 +5,10 @@ import (
 	"github.com/go-gl/mathgl/mgl32"
 )
 
-// Chunk is a chunk of blocks for purposed of rendering.
+// Chunk groups blocks for rendering and operations.
 type Chunk struct {
-	atlas *TextureAtlas
-
-	// shader program
+	// resources
+	atlas  *TextureAtlas
 	shader *Shader
 
 	// blocks in the chunk, position determined by index in array
@@ -25,12 +24,11 @@ type Chunk struct {
 	vao, vbo uint32
 }
 
-type BlockTypes [chunkWidth][chunkHeight][chunkWidth]string
-
 func newBlockTypes() BlockTypes {
 	return [chunkWidth][chunkHeight][chunkWidth]string{}
 }
 
+// dimensions
 const (
 	chunkWidth  = 16
 	chunkHeight = 256
@@ -115,8 +113,7 @@ func (c *Chunk) Buffer() {
 					continue
 				}
 
-				// get vertices for visible excludeFaces only
-				// TODO: consider other chunks and special block types (i.e. leaves) as well
+				// get vertices for visible faces only
 				var excludeFaces [6]bool
 				checkExclude := func(i, j, k int, face Direction) {
 					if i < 0 || i >= chunkWidth || j < 0 || j >= chunkHeight || k < 0 || k >= chunkWidth {
@@ -208,6 +205,7 @@ func (c *Chunk) Draw(target *TargetBlock, camera *Camera, light *Light) {
 	gl.DrawArrays(gl.TRIANGLES, 0, int32(c.vertCount))
 }
 
+// Returns a box around the chunk.
 func (c *Chunk) Box() Box {
 	max := c.pos.Add(mgl32.Vec3{
 		chunkWidth,

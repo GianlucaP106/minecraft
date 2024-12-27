@@ -1,5 +1,6 @@
 package game
 
+// blocks texture coordinates
 var blocks = map[string][6][2]int{
 	"bedrock": {
 		{11, 0},

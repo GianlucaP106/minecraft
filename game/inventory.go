@@ -1,5 +1,6 @@
 package game
 
+// Holds count of held blocks.
 type Inventory struct {
 	// maps the blockType to count
 	content map[string]int

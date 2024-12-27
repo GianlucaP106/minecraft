@@ -2,6 +2,7 @@ package game
 
 import "github.com/go-gl/mathgl/mgl32"
 
+// Represents a direction in the world.
 type Direction uint
 
 const (
@@ -14,6 +15,7 @@ const (
 	none                   // not calculated
 )
 
+// Normal vectors for each direction (ordered like above)
 var directions []mgl32.Vec3 = []mgl32.Vec3{
 	// north
 	{0, 0, -1},
@@ -45,7 +47,8 @@ func newDirection(p mgl32.Vec3) Direction {
 	return none
 }
 
-func (d Direction) Direction() mgl32.Vec3 {
+// Returns the normal for this direction.
+func (d Direction) Normal() mgl32.Vec3 {
 	new := directions[d]
 	return new
 }

@@ -10,6 +10,7 @@ const (
 	wallDetectionHeight   = 1.3
 )
 
+// Handles flying movement by player.
 func (g *Game) HanldleFly() {
 	if g.window.Debounce(glfw.KeyF) {
 		g.player.body.flying = !g.player.body.flying

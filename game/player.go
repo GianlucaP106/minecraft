@@ -15,16 +15,19 @@ type Player struct {
 }
 
 const (
+	// dimensions
 	playerHeight = 1.5
 	playerMass   = 80
 	playerWidth  = 0.5
 	playerSpeed  = 6.5
+
+	// surroundings
 	playerRadius = 20
 )
 
 func newPlayer() *Player {
 	p := &Player{}
-	p.camera = newCamera(mgl32.Vec3{100, 150, 100})
+	p.camera = newCamera(mgl32.Vec3{100, 125, 100})
 	p.body = &RigidBody{
 		position: p.camera.pos,
 		mass:     playerMass,
@@ -41,7 +44,7 @@ func newPlayer() *Player {
 	return p
 }
 
-// Returns the body position with a walk transform that can be set
+// Sets the camera position with a walking transformation.
 func (p *Player) setCameraPosition() {
 	if !p.body.grounded {
 		p.camera.pos = p.body.position
@@ -81,9 +84,10 @@ func (p *Player) Movement(forward, right float32) mgl32.Vec3 {
 	return movement.Mul(playerSpeed)
 }
 
+// Returns true if player sees the chunk.
 // TODO: convert this to full frustrum cull
 func (p *Player) Sees(chunk *Chunk) bool {
-	frustrum := p.camera.Frustrum(far)
+	frustrum := p.camera.Frustrum()
 	box := chunk.Box()
 	for _, corner := range box.Corners() {
 		if frustrum.near.Distance(corner) >= 0 {

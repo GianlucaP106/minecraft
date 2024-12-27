@@ -1,5 +1,6 @@
 package game
 
+// Wrapper over Texture allowing to index to get coordinates/
 type TextureAtlas struct {
 	texture *Texture
 }
@@ -10,6 +11,7 @@ func newTextureAtlas(texture *Texture) *TextureAtlas {
 	return t
 }
 
+// Returns the normalized texture coordinates.
 func (t *TextureAtlas) Coords(u, v int) (umin, umax, vmin, vmax float32) {
 	size := t.texture.img.Rect.Size()
 	umin = (16.0 * float32(u)) / float32(size.X)

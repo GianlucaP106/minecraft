@@ -6,6 +6,8 @@ import (
 	"github.com/go-gl/mathgl/mgl32"
 )
 
+// Ray is a vector with an origin and projected length.
+// Can be used as a line of sight.
 type Ray struct {
 	origin    mgl32.Vec3
 	direction mgl32.Vec3
@@ -13,9 +15,9 @@ type Ray struct {
 }
 
 // March marches in the direction of the ray, detection the first the block in sight,
-// where the callback determines if a block is present.
+// where the callback is used to determine if a block is present.
 func (r Ray) March(find func(p mgl32.Vec3) bool) (bool, Direction, mgl32.Vec3) {
-	// finds the smallest `t` such that `s + (ds * t)` is an integer
+	// helper to find the smallest `t` such that `s + (ds * t)` is an integer
 	// i.e finds the next block point
 	intbound := func(s, ds mgl32.Vec3) mgl32.Vec3 {
 		c := func(s, ds float32) float32 {

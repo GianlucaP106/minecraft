@@ -7,7 +7,10 @@ import (
 
 // Crosshair displays marker on the screen for player.
 type Crosshair struct {
-	shader    *Shader
+	// shader program
+	shader *Shader
+
+	// gpu info
 	vao       uint32
 	vbo       uint32
 	vertCount int

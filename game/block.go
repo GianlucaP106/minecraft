@@ -78,6 +78,7 @@ func (b *Block) Box() Box {
 	return newBox(min, max)
 }
 
+// Returns vertices for a block with textures.
 func (b *Block) Vertices(excludeFaces [6]bool) []TexturedVertex {
 	type vert struct {
 		pos mgl32.Vec3
@@ -137,7 +138,7 @@ func (b *Block) Vertices(excludeFaces [6]bool) []TexturedVertex {
 
 		dir := Direction(i)
 		faceVertices := getQuadVertices(dir)
-		norm := directions[dir]
+		norm := dir.Normal()
 
 		for _, face := range faceVertices {
 			out = append(out, TexturedVertex{

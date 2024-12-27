@@ -4,7 +4,7 @@ import (
 	"github.com/go-gl/mathgl/mgl32"
 )
 
-// General bounding box.
+// General AABB bounding box.
 type Box struct {
 	min, center, max mgl32.Vec3
 }
@@ -103,6 +103,7 @@ func (b Box) CombineY(b2 Box) Box {
 	return newBox(b2.min, b.max)
 }
 
+// Returns the 8 corners of the box.
 func (b Box) Corners() []mgl32.Vec3 {
 	sizeX := b.max.X() - b.min.X()
 	sizeY := b.max.Y() - b.min.Y()

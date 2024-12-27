@@ -5,6 +5,7 @@ import (
 	"github.com/go-gl/mathgl/mgl32"
 )
 
+// Draws and maintains the selected hotbar and selected block.
 type Hotbar struct {
 	shader    *Shader
 	atlas     *TextureAtlas

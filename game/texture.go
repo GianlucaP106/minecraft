@@ -10,9 +10,16 @@ import (
 	"github.com/go-gl/gl/v4.1-core/gl"
 )
 
+// Manages references to texture assets from a provided directory.
 type TextureManager struct {
 	textures map[string]*Texture
 	rootPath string
+}
+
+// Reference to a single texture.
+type Texture struct {
+	img    *image.RGBA
+	handle uint32
 }
 
 func newTextureManager(rootPath string) *TextureManager {
@@ -22,6 +29,7 @@ func newTextureManager(rootPath string) *TextureManager {
 	return tm
 }
 
+// Creates a texture.
 func (t *TextureManager) CreateTexture(name string) *Texture {
 	file := filepath.Join(t.rootPath, name)
 	imgFile, err := os.Open(file)
@@ -64,9 +72,4 @@ func (t *TextureManager) CreateTexture(name string) *Texture {
 	}
 	t.textures[name] = tex
 	return tex
-}
-
-type Texture struct {
-	img    *image.RGBA
-	handle uint32
 }

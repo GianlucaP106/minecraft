@@ -12,9 +12,24 @@ import (
 )
 
 // ShaderManager manages references to shader programs.
+// Takes a root directory that follows the format:
+// rootPath:
+//   - name1:
+//     -- vert.glsl
+//     -- frag.glsl
+//   - name2:
+//     -- vert.glsl
+//     -- frag.glsl
+//   - ...
 type ShaderManager struct {
 	shaders  map[string]*Shader
 	rootPath string
+}
+
+// Reference to single shader program.
+type Shader struct {
+	name   string
+	handle uint32
 }
 
 func newShaderManager(root string) *ShaderManager {
@@ -137,9 +152,4 @@ func (s *ShaderManager) compile(source string, shaderType uint32) (uint32, error
 	}
 
 	return shader, nil
-}
-
-type Shader struct {
-	name   string
-	handle uint32
 }

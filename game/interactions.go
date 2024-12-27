@@ -32,7 +32,7 @@ func (g *Game) PlaceBlock() {
 	}
 
 	pos := g.target.block.WorldPos()
-	newPos := pos.Add(g.target.face.Direction())
+	newPos := pos.Add(g.target.face.Normal())
 	block := g.world.Block(newPos)
 	if block == nil {
 		return
@@ -105,6 +105,7 @@ func (g *Game) SetMouseClickHandler() {
 	})
 }
 
+// Hanldes selection of block in hotbar.
 func (g *Game) HandleInventorySelect() {
 	key := -1
 	switch {

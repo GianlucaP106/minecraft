@@ -8,13 +8,12 @@ import (
 )
 
 // TODO: full review and remove unused code
+// TODO: shadow mapping
 
 // Root app instance.
 type Game struct {
-	// main window
-	window *Window
-
-	// resource and shader managers
+	// resources
+	window   *Window
 	shaders  *ShaderManager
 	textures *TextureManager
 
@@ -43,6 +42,7 @@ type Game struct {
 	physics *PhysicsEngine
 }
 
+// Starts the game.
 func Start() {
 	log.Println("Starting game...")
 	g := Game{}
@@ -109,6 +109,7 @@ func (g *Game) Run() {
 
 		// world
 		g.world.SpawnRadius(g.player.body.position)
+		g.world.ProcessTasks()
 		delta := g.clock.Delta()
 		g.physics.Tick(delta)
 

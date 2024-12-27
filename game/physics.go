@@ -35,15 +35,17 @@ func (p *PhysicsEngine) Tick(delta float64) {
 	}
 }
 
+// Registers a RigidBody to be computed on each tick.
 func (p *PhysicsEngine) Register(body *RigidBody) {
 	p.registrations[body] = true
 }
 
-func (p *PhysicsEngine) Remove(body *RigidBody) {
+// Unregisters a RigidBody.
+func (p *PhysicsEngine) Unregister(body *RigidBody) {
 	delete(p.registrations, body)
 }
 
-// Runs on every tick. Will update the rigid bodies with derived physics.
+// Update the rigid bodies with derived physics.
 func (p *PhysicsEngine) update(body *RigidBody, delta float64) {
 	// handle gravity
 	if !body.grounded && !body.flying {
@@ -73,6 +75,7 @@ func (p *PhysicsEngine) update(body *RigidBody, delta float64) {
 	body.force = mgl32.Vec3{}
 }
 
+// Rigid body contains state for one entity.
 type RigidBody struct {
 	cb            func(*RigidBody)
 	collider      *Box
@@ -149,7 +152,7 @@ func (r *RigidBody) Move(movement mgl32.Vec3, ground *Box, _ *Box, walls []Box) 
 	r.velocity = mgl32.Vec3{movement.X(), yComponent, movement.Z()}
 }
 
-// Simulates a jump on the body by setting the velocity.
+// Jumps the body by setting the velocity.
 func (r *RigidBody) Jump() {
 	r.velocity = r.velocity.Add(mgl32.Vec3{0, jumpSpeed, 0})
 	r.grounded = false

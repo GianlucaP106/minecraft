@@ -2,6 +2,7 @@ package game
 
 import "math"
 
+// 32 bit floor.
 func floor(v float32) float32 {
 	return float32(math.Floor(float64(v)))
 }

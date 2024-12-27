@@ -1,6 +1,8 @@
 package game
 
 import (
+	"math"
+
 	"github.com/go-gl/mathgl/mgl32"
 )
 
@@ -9,6 +11,9 @@ type WorldGenerator struct {
 	// generates noise map for terrain generation
 	noise *NoiseMapGenerator
 }
+
+// Defines the block types for one chunk.
+type BlockTypes [chunkWidth][chunkHeight][chunkWidth]string
 
 func newWorldGenerator(seed int64) *WorldGenerator {
 	w := &WorldGenerator{}
@@ -142,7 +147,7 @@ func (w *WorldGenerator) FlatHeights(pos mgl32.Vec2, height float32) [][]float32
 }
 
 func (w *WorldGenerator) TreeDistribution(pos mgl32.Vec2) [][]float32 {
-	// biome := w.Biome(pos)
+	biome := w.Biome(pos)
 	config2D := NoiseConfig2D{
 		scale:     0.5,
 		normalize: true,
@@ -151,10 +156,10 @@ func (w *WorldGenerator) TreeDistribution(pos mgl32.Vec2) [][]float32 {
 		position:  pos,
 		octaves:   1,
 		f: func(noise float32, i, j int) float32 {
-			return noise
-			// control := biome[i][j]
-			// // amplify trees when biome is high
-			// return (1 - control) * noise
+			// amplify trees when biome is high but
+			// maintain a certain level across all biomes
+			noise = float32(math.Pow(float64(noise), 4))
+			return biome*noise + 0.3
 		},
 	}
 	return w.noise.Generate2D(config2D)
