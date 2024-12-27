@@ -2,12 +2,12 @@ package game
 
 import (
 	"log"
+	"time"
 
 	"github.com/go-gl/gl/v4.1-core/gl"
 	"github.com/go-gl/glfw/v3.3/glfw"
 )
 
-// TODO: full review and remove unused code
 // TODO: shadow mapping
 
 // Root app instance.
@@ -55,9 +55,10 @@ func (g *Game) Init() {
 	// glfw window
 	g.window = newWindow()
 
-	// configure global settings
 	gl.Enable(gl.DEPTH_TEST)
-	gl.ClearColor(1.0, 1.0, 1.0, 1.0)
+	g.light = newLight()
+	g.light.SetLevel(1.0)
+	g.light.StartDay(time.Second * 10)
 
 	// init resource managers and create resources
 	g.shaders = newShaderManager("./shaders")
@@ -65,20 +66,13 @@ func (g *Game) Init() {
 	atlas := newTextureAtlas(g.textures.CreateTexture("atlas.png"))
 
 	g.player = newPlayer()
-
 	g.physics = newPhysicsEngine()
 	g.physics.Register(g.player.body)
 
-	g.light = newLight()
-
-	// init world
 	g.world = newWorld(g.shaders.Program("chunk"), atlas)
 	g.world.Init()
-
-	// init the clock which computes delta for time based computations
 	g.clock = newClock()
 
-	// set key and mouse handlers
 	g.SetLookHandler()
 	g.SetMouseClickHandler()
 
@@ -110,6 +104,7 @@ func (g *Game) Run() {
 		// world
 		g.world.SpawnRadius(g.player.body.position)
 		g.world.ProcessTasks()
+		g.light.HandleChange()
 		delta := g.clock.Delta()
 		g.physics.Tick(delta)
 

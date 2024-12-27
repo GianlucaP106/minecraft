@@ -24,10 +24,10 @@ type World struct {
 }
 
 const (
-	// TODO: dimensions
-	ground    = 0.0
-	bedrock   = -160
-	maxHeight = 200
+	// dimensions
+	ground    = 100.0
+	bedrock   = 0.0
+	maxHeight = 200.0
 
 	// rendering
 	visibleRadius     = 130.0
@@ -202,7 +202,7 @@ func (w *World) SpawnTrees(chunk *Chunk) {
 	fallout := w.generator.TreeFallout(width, leavesHeight, width)
 	for x, dist := range trees {
 		for z, prob := range dist {
-			if prob <= 0.60 {
+			if prob <= 0.65 {
 				continue
 			}
 

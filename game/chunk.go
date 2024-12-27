@@ -181,9 +181,12 @@ func (c *Chunk) Draw(target *TargetBlock, camera *Camera, light *Light) {
 	gl.Uniform3fv(viewPosUniform, 1, &camera.pos[0])
 
 	// attach world light position
-	lightPos := light.pos
 	lightPosUniform := gl.GetUniformLocation(c.shader.handle, gl.Str("lightPos\x00"))
-	gl.Uniform3fv(lightPosUniform, 1, &lightPos[0])
+	gl.Uniform3fv(lightPosUniform, 1, &light.pos[0])
+
+	// attach world light level
+	lightLvlUniform := gl.GetUniformLocation(c.shader.handle, gl.Str("lightLevel\x00"))
+	gl.Uniform1f(lightLvlUniform, light.level)
 
 	// attach lookedAtBlock which determines which block is being locked at in the chunk
 	isLooking := 0

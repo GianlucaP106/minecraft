@@ -6,6 +6,9 @@ uniform sampler2D tex;
 // position of light source
 uniform vec3 lightPos;
 
+// level of light source
+uniform float lightLevel;
+
 // position of camera
 uniform vec3 cameraPos;
 
@@ -41,6 +44,7 @@ void main() {
     float specularStrength = 0.25;
     float shininess = 8;
     vec3 lightColor = vec3(1.0, 1.0, 1.0);
+    lightColor = lightColor * lightLevel;
 
     // diffuse lighting component
     vec3 norm = normalize(fragNorm);

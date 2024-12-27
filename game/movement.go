@@ -57,6 +57,11 @@ func (g *Game) HandleMove() {
 		movement[1] = 5
 	}
 
+	// teleport back to start if hit bedrock
+	if g.player.body.position.Y() <= bedrock {
+		g.player.body.position = startPosition
+	}
+
 	// collect colliders (walls, floors, ceiling)
 	walls := make([]Box, 0)
 	wall := func(x, z float32) {
