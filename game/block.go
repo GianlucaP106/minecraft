@@ -101,7 +101,7 @@ func (b *Block) Vertices(excludeFaces [6]bool) ([]mgl32.Vec3, []mgl32.Vec3, []mg
 	return verts, norms, texCoords
 }
 
-// Returns the world position of the block.
+// Returns the world position of the block (center of the block).
 func (b *Block) WorldPos() mgl32.Vec3 {
 	return b.Translate().Mul4x1(b.chunk.pos.Vec4(1)).Vec3()
 }

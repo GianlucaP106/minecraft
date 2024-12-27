@@ -7,6 +7,8 @@ import (
 	"github.com/go-gl/glfw/v3.3/glfw"
 )
 
+// TODO: full review and remove unused code
+
 // Root app instance.
 type Game struct {
 	// main window
@@ -18,6 +20,9 @@ type Game struct {
 
 	// main player
 	player *Player
+
+	// light source
+	light *Light
 
 	// world spawns and despawns entities
 	world *World
@@ -68,6 +73,8 @@ func (g *Game) Init() {
 	g.physics = newPhysicsEngine()
 	g.physics.Register(g.player.body)
 
+	g.light = newLight()
+
 	// init world
 	g.world = newWorld(g.shaders.Program("chunk"), atlas)
 	g.world.Init()
@@ -82,7 +89,7 @@ func (g *Game) Init() {
 	g.crosshair = newCrosshair(g.shaders.Program("crosshair"))
 	g.crosshair.Init()
 
-	g.hotbar = newHotbar(g.shaders.Program("hotbar"), atlas)
+	g.hotbar = newHotbar(g.shaders.Program("hotbar"), atlas, g.player.camera)
 	g.hotbar.Init()
 }
 
@@ -95,15 +102,23 @@ func (g *Game) Run() {
 		// clear buffers
 		gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
 
-		g.HandleMovePlayer()
+		// movement
+		g.HandleMove()
 		g.HandleJump()
 		g.HanldleFly()
+
+		// interactions
 		g.LookBlock()
 		g.HandleInventorySelect()
-		g.world.SpawnRadius(g.player.body.position)
 
+		// world
+		g.world.SpawnRadius(g.player.body.position)
 		delta := g.clock.Delta()
 		g.physics.Tick(delta)
+
+		// drawing
+		g.crosshair.Draw()
+		g.hotbar.Draw()
 
 		for _, c := range g.world.NearChunks(g.player.body.position) {
 			var target *TargetBlock
@@ -112,14 +127,11 @@ func (g *Game) Run() {
 				target = g.target
 			}
 
-			if g.player.Sees(c.pos) {
-				c.Draw(target, g.player.camera)
+			// frustrum culling
+			if g.player.Sees(c) {
+				c.Draw(target, g.player.camera, g.light)
 			}
 		}
-
-		// draw cross hair
-		g.crosshair.Draw()
-		g.hotbar.Draw()
 
 		// window maintenance
 		g.window.SwapBuffers()

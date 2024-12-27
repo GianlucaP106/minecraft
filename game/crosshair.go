@@ -45,7 +45,7 @@ func (c *Crosshair) Init() {
 func (c *Crosshair) Buffer() {
 	gl.BindBuffer(gl.ARRAY_BUFFER, c.vbo)
 
-	color := mgl32.Vec3{0, 0, 0}
+	color := mgl32.Vec3{1, 1, 1}
 
 	x1 := mgl32.Vec3{-1.0, 0, 0.0}
 	x2 := mgl32.Vec3{1.0, 0, 0.0}
@@ -71,7 +71,8 @@ func (c *Crosshair) Draw() {
 	gl.UseProgram(c.shader.handle)
 	gl.BindVertexArray(c.vao)
 
-	model := mgl32.Ident4()
+	scale := mgl32.Scale3D(0.025, 0.04, 1)
+	model := scale
 	modelUniform := gl.GetUniformLocation(c.shader.handle, gl.Str("model\x00"))
 	gl.UniformMatrix4fv(modelUniform, 1, false, &model[0])
 

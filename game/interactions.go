@@ -27,6 +27,7 @@ func (g *Game) LookBlock() {
 }
 
 func (g *Game) PlaceBlock() {
+	// FIXME: nil pointer happened here
 	pos := g.target.block.WorldPos()
 	newPos := pos.Add(g.target.face.Direction())
 	block := g.world.Block(newPos)
@@ -51,7 +52,6 @@ func (g *Game) PlaceBlock() {
 	}
 
 	// sync with hotbar
-	// TODO:
 	c := g.player.inventory.Count(blockType)
 	if c == 0 {
 		g.hotbar.Remove(blockType)
@@ -67,7 +67,8 @@ func (g *Game) BreakBlock() {
 	if g.target == nil {
 		return
 	}
-	log.Println("Breaking: ", g.target.block.WorldPos())
+	p := g.target.block.WorldPos()
+	log.Println("Breaking: ", p)
 	g.target.block.active = false
 
 	blockType := g.target.block.blockType

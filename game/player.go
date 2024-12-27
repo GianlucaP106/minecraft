@@ -19,6 +19,7 @@ const (
 	playerMass   = 80
 	playerWidth  = 0.5
 	playerSpeed  = 6.5
+	playerRadius = 20
 )
 
 func newPlayer() *Player {
@@ -80,8 +81,8 @@ func (p *Player) Movement(forward, right float32) mgl32.Vec3 {
 	return movement.Mul(playerSpeed)
 }
 
-// Returns true if passed pos is in view.
-// TODO:
-func (p *Player) Sees(pos mgl32.Vec3) bool {
-	return true
+func (p *Player) Sees(chunk *Chunk) bool {
+	frustrum := p.camera.Frustrum(visibleRadius)
+	box := chunk.Box()
+	return frustrum.ContainsBox(box) || box.Distance(p.camera.pos) < playerRadius
 }

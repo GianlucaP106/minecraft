@@ -1,6 +1,8 @@
 package game
 
 import (
+	"math"
+
 	"github.com/go-gl/mathgl/mgl32"
 )
 
@@ -22,12 +24,19 @@ type Camera struct {
 	prevScreenX, prevScreenY float32
 }
 
+const (
+	fov    = 45.0
+	aspect = float32(windowWidth) / windowHeight
+	near   = 0.01
+	far    = 1000.0
+)
+
 func newCamera(initialPos mgl32.Vec3) *Camera {
 	c := &Camera{}
 	c.pos = initialPos
 	c.view = mgl32.Vec3{0, 0, -1}
 	c.up = mgl32.Vec3{0, 1, 0}
-	c.projection = mgl32.Perspective(mgl32.DegToRad(45.0), float32(windowWidth)/windowHeight, 0.01, 1000.0)
+	c.projection = mgl32.Perspective(mgl32.DegToRad(fov), aspect, near, far)
 	return c
 }
 
@@ -68,4 +77,21 @@ func (c *Camera) Look(screenX, screenY float32) {
 
 	// compute transformation and normalize
 	c.view = rotation.Mul4x1(dir).Vec3().Normalize()
+}
+
+func (c *Camera) Frustrum(distance float32) *Frustrum {
+	halfV := float32(float64(distance) * math.Tan(float64(mgl32.DegToRad(fov)*0.5)))
+	halfH := halfV * aspect
+	f := &Frustrum{}
+	farVec := c.view.Mul(distance)
+	upVec := c.up.Mul(halfV)
+	right := c.cross()
+	rightVec := c.cross().Mul(halfH)
+	f.near = newPlane(c.view, c.pos.Add(c.view.Mul(near)))
+	f.far = newPlane(c.view.Mul(-1), c.pos.Add(farVec))
+	f.right = newPlane(farVec.Add(rightVec).Cross(c.up.Mul(-1)), c.pos)
+	f.left = newPlane(farVec.Sub(rightVec).Cross(c.up), c.pos)
+	f.top = newPlane(farVec.Add(upVec).Cross(right), c.pos)
+	f.bottom = newPlane(farVec.Sub(upVec).Cross(right), c.pos)
+	return f
 }

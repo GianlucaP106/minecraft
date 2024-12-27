@@ -8,6 +8,7 @@ import (
 type Hotbar struct {
 	shader    *Shader
 	atlas     *TextureAtlas
+	camera    *Camera
 	bar       [9]string
 	vertCount int
 	selected  int
@@ -15,10 +16,11 @@ type Hotbar struct {
 	vbo       uint32
 }
 
-func newHotbar(shader *Shader, atlas *TextureAtlas) *Hotbar {
+func newHotbar(shader *Shader, atlas *TextureAtlas, camera *Camera) *Hotbar {
 	h := &Hotbar{
 		shader: shader,
 		atlas:  atlas,
+		camera: camera,
 	}
 	return h
 }
@@ -44,7 +46,7 @@ func (h *Hotbar) Init() {
 	h.Buffer()
 }
 
-// Sends the hot vertices to GPU.
+// Sends the hotbar vertices to GPU.
 func (h *Hotbar) Buffer() {
 	gl.BindBuffer(gl.ARRAY_BUFFER, h.vbo)
 
@@ -80,15 +82,17 @@ func (h *Hotbar) Buffer() {
 			tex := blocks[h.bar[idx]]
 			texFace = tex[1]
 		} else {
+			// coords in tecture atlas
 			texFace = [2]int{32, 6}
 		}
 
 		umin, umax, vmin, vmax := h.atlas.Coords(texFace[0], texFace[1])
 		uvs := uv(umin, umax, vmin, vmax)
 
-		scale := mgl32.Scale3D(0.05, 0.05, 1.0)
-		translate := mgl32.Translate3D(float32(i)*3, -18, 0)
+		scale := mgl32.Scale3D(0.025, 0.025, 0.025)
+		translate := mgl32.Translate3D(float32(i)*3, -15, 0)
 		m := scale.Mul4(translate)
+		m = h.camera.projection.Mul4(m)
 		for j, v := range quad {
 			h.vertCount++
 			vert := m.Mul4x1(v.Vec4(0, 1))
@@ -101,11 +105,13 @@ func (h *Hotbar) Buffer() {
 
 		// draw a selected marker
 		if idx == h.selected {
-			umin, umax, vmin, vmax := h.atlas.Coords(40, 5)
+			umin, umax, vmin, vmax := h.atlas.Coords(43, 27)
+			// umin, umax, vmin, vmax := h.atlas.Coords(40, 5)
 			uvs := uv(umin, umax, vmin, vmax)
 
-			translate := mgl32.Translate3D(float32(i)*3, -16, 0)
+			translate := mgl32.Translate3D(float32(i)*3, -13, 0)
 			m := scale.Mul4(translate)
+			m = h.camera.projection.Mul4(m)
 			for j, v := range quad {
 				h.vertCount++
 				vert := m.Mul4x1(v.Vec4(0, 1))
@@ -150,11 +156,13 @@ func (h *Hotbar) Remove(blockType string) {
 	h.Buffer()
 }
 
+// Selects the ith item in the hotbar.
 func (h *Hotbar) Select(i int) {
 	h.selected = i
 	h.Buffer()
 }
 
+// Returns the selected block type.
 func (h *Hotbar) Selected() string {
 	if h.selected > -1 && h.selected < 10 {
 		return h.bar[h.selected]

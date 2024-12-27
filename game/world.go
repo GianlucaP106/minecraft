@@ -31,10 +31,10 @@ const (
 	maxHeight = 200
 
 	// radius to draw
-	visibleRadius = 130.0
+	visibleRadius = 150.0
 
 	// radius to despawn
-	destroyRadius = 500.0
+	destroyRadius = 400.0
 )
 
 func newWorld(chunkShader *Shader, atlas *TextureAtlas) *World {

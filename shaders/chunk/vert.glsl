@@ -23,7 +23,7 @@ in vec2 texCoord;
 
 // outputs
 out vec2 fragTexCoord;
-out vec2 selected;
+out float selected;
 out vec3 fragNorm;
 out vec3 fragPos;
 
@@ -39,12 +39,8 @@ void main() {
     bool isSelected = pos.x >= blockMin.x && pos.x <= blockMax.x &&
         pos.y >= blockMin.y && pos.y <= blockMax.y &&
         pos.z >= blockMin.z && pos.z <= blockMax.z && isLooking;
-    // TODO: find better way to do this
-    if (isSelected) {
-        selected = vec2(1.0);
-    } else {
-        selected = vec2(0.0);
-    }
+
+    selected = isSelected ? 1.0 : 0.0;
 
 
     // apply special world transformation to normal vector

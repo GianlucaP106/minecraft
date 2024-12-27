@@ -12,8 +12,8 @@ uniform vec3 cameraPos;
 // texture coordinate
 in vec2 fragTexCoord;
 
-// if this frag is selected (TODO: find better data type)
-in vec2 selected;
+// if this frag is selected
+in float selected;
 
 // normal vector
 in vec3 fragNorm;
@@ -32,14 +32,14 @@ void main() {
     }
 
     // make darker when selected
-    if (selected.x == 1.0) {
+    if (selected == 1.0) {
         c = c * 0.6;
     }
 
     // lighting parameters
-    float ambientStrength = 0.25;
-    float specularStrength = 0.5;
-    float shininess = 32;
+    float ambientStrength = 0.5;
+    float specularStrength = 0.25;
+    float shininess = 8;
     vec3 lightColor = vec3(1.0, 1.0, 1.0);
 
     // diffuse lighting component

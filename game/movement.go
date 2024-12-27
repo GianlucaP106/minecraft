@@ -36,8 +36,7 @@ func (g *Game) HandleJump() {
 }
 
 // Handles player move from pressed keys.
-// TODO: clean up function
-func (g *Game) HandleMovePlayer() {
+func (g *Game) HandleMove() {
 	// get input for movement
 	var rightMove float32
 	var forwardMove float32
@@ -107,7 +106,6 @@ func (g *Game) HandleMovePlayer() {
 		celingBox = &t
 	}
 
-	// g.player.Move(forwardMove, rightMove, floorBox, celingBox, walls)
 	g.player.body.Move(movement, floorBox, celingBox, walls)
 }
 

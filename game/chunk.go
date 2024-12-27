@@ -18,7 +18,7 @@ type Chunk struct {
 	// total count of vertices in the chunk
 	vertCount int
 
-	// world postion of the chunk
+	// world postion of the chunk (corner)
 	pos mgl32.Vec3
 
 	// gpu buffers
@@ -32,7 +32,6 @@ func newBlockTypes() BlockTypes {
 }
 
 const (
-	// chunkSize   = 16
 	chunkWidth  = 16
 	chunkHeight = 256
 )
@@ -175,7 +174,7 @@ func (c *Chunk) Buffer() {
 
 // Draws the chunk from the perspective of the provided camera.
 // Sets the "lookedAtBlock" to be the provided target block.
-func (c *Chunk) Draw(target *TargetBlock, camera *Camera) {
+func (c *Chunk) Draw(target *TargetBlock, camera *Camera, light *Light) {
 	gl.UseProgram(c.shader.handle)
 	gl.BindVertexArray(c.vao)
 
@@ -196,8 +195,7 @@ func (c *Chunk) Draw(target *TargetBlock, camera *Camera) {
 	gl.Uniform3fv(viewPosUniform, 1, &camera.pos[0])
 
 	// attach world light position
-	// TODO: generalize
-	lightPos := mgl32.Vec3{0, 200, 0}
+	lightPos := light.pos
 	lightPosUniform := gl.GetUniformLocation(c.shader.handle, gl.Str("lightPos\x00"))
 	gl.Uniform3fv(lightPosUniform, 1, &lightPos[0])
 
@@ -219,4 +217,13 @@ func (c *Chunk) Draw(target *TargetBlock, camera *Camera) {
 
 	// final draw call for chunk
 	gl.DrawArrays(gl.TRIANGLES, 0, int32(c.vertCount))
+}
+
+func (c *Chunk) Box() Box {
+	max := c.pos.Add(mgl32.Vec3{
+		chunkWidth,
+		chunkHeight,
+		chunkWidth,
+	})
+	return newBox(c.pos, max)
 }

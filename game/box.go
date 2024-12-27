@@ -102,3 +102,25 @@ func (b Box) CombineY(b2 Box) Box {
 	}
 	return newBox(b2.min, b.max)
 }
+
+func (b Box) Corners() []mgl32.Vec3 {
+	sizeX := b.max.X() - b.min.X()
+	sizeY := b.max.Y() - b.min.Y()
+	sizeZ := b.max.Z() - b.min.Z()
+
+	corners := []mgl32.Vec3{}
+	add := func(v mgl32.Vec3) {
+		corners = append(corners, b.min.Add(v))
+	}
+
+	add(mgl32.Vec3{0, 0, 0})
+	add(mgl32.Vec3{sizeX, 0, 0})
+	add(mgl32.Vec3{0, 0, sizeZ})
+	add(mgl32.Vec3{sizeX, 0, sizeZ})
+
+	add(mgl32.Vec3{0, sizeY, 0})
+	add(mgl32.Vec3{sizeX, sizeY, 0})
+	add(mgl32.Vec3{0, sizeY, sizeZ})
+	add(mgl32.Vec3{sizeX, sizeY, sizeZ})
+	return corners
+}

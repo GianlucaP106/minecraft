@@ -1,8 +1,6 @@
 package game
 
 import (
-	"fmt"
-
 	"github.com/go-gl/mathgl/mgl32"
 )
 
@@ -27,8 +25,6 @@ func (w *WorldGenerator) Terrain(pos mgl32.Vec3) BlockTypes {
 	heights := w.Heights(pos2d)
 	out := newBlockTypes()
 	caves := w.Caves(pos)
-
-	fmt.Println("Biome: ", biome, " Pos: ", pos)
 
 	// set terrain
 	for x := 0; x < chunkWidth; x++ {
@@ -195,9 +191,10 @@ func (w *WorldGenerator) Caves(pos mgl32.Vec3) [][][]float32 {
 		height:      float32(chunkHeight),
 		depth:       chunkWidth,
 		position:    pos,
-		octaves:     4,
-		persistence: 0.5,
+		octaves:     5,
+		persistence: 0.7,
 		lacunarity:  1,
 	}
+
 	return w.noise.Generate3D(config)
 }
