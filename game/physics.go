@@ -11,11 +11,13 @@ type PhysicsEngine struct {
 }
 
 const (
-	jumpSpeed              = 9
-	gravity                = 27.5
-	penetrationEpsilon     = 0.05
-	airMovementSuppression = 0.5
-	flyingSpeedMultipier   = 4.0
+	jumpSpeed               = 9
+	gravity                 = 27.5
+	penetrationEpsilonSmall = 0.05
+	penetrationEpsilonBig   = 0.7
+	airMovementSuppression  = 0.5
+	flyingSpeedMultipier    = 4.0
+	positionHistoryLength   = 10
 )
 
 func newPhysicsEngine() *PhysicsEngine {
@@ -57,6 +59,7 @@ func (p *PhysicsEngine) update(body *RigidBody, delta float64) {
 	body.velocity = body.velocity.Add(acc.Mul(float32(delta)))
 
 	dpos := body.velocity.Mul(float32(delta))
+	body.appendHistory()
 	body.position = body.position.Add(dpos)
 	body.collider = &Box{
 		min: body.position.Sub(mgl32.Vec3{body.width / 2, body.height, body.width / 2}),
@@ -77,16 +80,17 @@ func (p *PhysicsEngine) update(body *RigidBody, delta float64) {
 
 // Rigid body contains state for one entity.
 type RigidBody struct {
-	cb            func(*RigidBody)
-	collider      *Box
-	tripDistance  float32
-	position      mgl32.Vec3
-	velocity      mgl32.Vec3
-	force         mgl32.Vec3
-	mass          float32
-	width, height float32
-	flying        bool
-	grounded      bool
+	cb              func(*RigidBody)
+	collider        *Box
+	positionHistory []mgl32.Vec3
+	tripDistance    float32
+	position        mgl32.Vec3
+	velocity        mgl32.Vec3
+	force           mgl32.Vec3
+	mass            float32
+	width, height   float32
+	flying          bool
+	grounded        bool
 }
 
 // Moves a rigid body using direct velocity.
@@ -127,7 +131,7 @@ func (r *RigidBody) Move(movement mgl32.Vec3, ground *Box, _ *Box, walls []Box) 
 				continue
 			}
 
-			if penetration.Len() <= penetrationEpsilon {
+			if penetration.Len() <= penetrationEpsilonSmall {
 				// make movement 0 if penetration is small and dont adjust position
 				for i := 0; i < 3; i++ {
 					if mgl32.Abs(penetration[i]) > 0.0 && sign(movement[i]) == sign(penetration[i]) {
@@ -135,6 +139,10 @@ func (r *RigidBody) Move(movement mgl32.Vec3, ground *Box, _ *Box, walls []Box) 
 						movement[i] = 0
 					}
 				}
+			} else if penetration.Len() > penetrationEpsilonBig {
+				// TODO: find a better solution for when collisions are big
+				// HACK: rewind position back
+				r.position = r.positionHistory[len(r.positionHistory)-1]
 			} else {
 				// adjust position of rb by moving back the same as the pentration
 				r.position = r.position.Sub(penetration)
@@ -156,4 +164,14 @@ func (r *RigidBody) Move(movement mgl32.Vec3, ground *Box, _ *Box, walls []Box) 
 func (r *RigidBody) Jump() {
 	r.velocity = r.velocity.Add(mgl32.Vec3{0, jumpSpeed, 0})
 	r.grounded = false
+}
+
+func (r *RigidBody) appendHistory() {
+	if r.positionHistory == nil {
+		r.positionHistory = make([]mgl32.Vec3, 0)
+	}
+	r.positionHistory = append([]mgl32.Vec3{r.position}, r.positionHistory...)
+	if len(r.positionHistory) > positionHistoryLength {
+		r.positionHistory = r.positionHistory[:len(r.positionHistory)-2]
+	}
 }

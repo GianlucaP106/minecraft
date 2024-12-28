@@ -30,6 +30,7 @@ func (w *WorldGenerator) Terrain(pos mgl32.Vec3) BlockTypes {
 	heights := w.Heights(pos2d)
 	out := newBlockTypes()
 	caves := w.Caves(pos)
+	gravel := w.Gravel(pos)
 
 	// set terrain
 	for x := 0; x < chunkWidth; x++ {
@@ -42,7 +43,25 @@ func (w *WorldGenerator) Terrain(pos mgl32.Vec3) BlockTypes {
 					continue
 				}
 
+				if curHeight <= 5 {
+					out[x][y][z] = "bedrock"
+					continue
+				}
+
 				if caves[x][y][z] > 0.725 {
+					continue
+				}
+
+				if gravel[x][y][z] > 0.77 {
+					if biome <= 0.4 {
+						out[x][y][z] = "sandstone"
+					} else {
+						if gravel[x][y][z] <= 0.775 {
+							out[x][y][z] = "gravel"
+						} else {
+							out[x][y][z] = "gravel2"
+						}
+					}
 					continue
 				}
 
@@ -58,15 +77,12 @@ func (w *WorldGenerator) Terrain(pos mgl32.Vec3) BlockTypes {
 
 				// check if block is a stone
 				if y < chunkHeight-4 {
-					isStone := true
-					for i := y + 1; i < y+4; i++ {
-						if out[x][i][z] == "" {
-							isStone = false
-							break
+					if y < int(heights[x][z]-4) {
+						if gravel[x][y][z] < 0.25 {
+							out[x][y][z] = "cobblestone"
+						} else {
+							out[x][y][z] = "stone"
 						}
-					}
-					if isStone {
-						out[x][y][z] = "stone"
 						continue
 					}
 				}
@@ -76,7 +92,7 @@ func (w *WorldGenerator) Terrain(pos mgl32.Vec3) BlockTypes {
 				case biome <= 0.4:
 					out[x][y][z] = "sand"
 				case biome > 0.4 && biome < 0.7:
-					if y == chunkHeight || out[x][y+1][z] == "" {
+					if y == int(heights[x][z]) {
 						out[x][y][z] = "dirt-grass"
 					} else {
 						out[x][y][z] = "dirt"
@@ -199,6 +215,20 @@ func (w *WorldGenerator) Caves(pos mgl32.Vec3) [][][]float32 {
 		octaves:     5,
 		persistence: 0.7,
 		lacunarity:  1,
+	}
+
+	return w.noise.Generate3D(config)
+}
+
+func (w *WorldGenerator) Gravel(pos mgl32.Vec3) [][][]float32 {
+	config := NoiseConfig3D{
+		scale:     0.07,
+		normalize: true,
+		width:     float32(chunkWidth),
+		height:    float32(chunkHeight),
+		depth:     chunkWidth,
+		position:  pos,
+		octaves:   1,
 	}
 
 	return w.noise.Generate3D(config)

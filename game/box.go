@@ -74,9 +74,11 @@ func (b Box) IntersectionXZ(b2 Box) (bool, mgl32.Vec3) {
 
 	var penetration mgl32.Vec3
 	if depthX < depthZ {
-		penetration = mgl32.Vec3{sign(overlapX2-overlapX1) * depthX, 0, 0}
+		penetrationX := depthX * sign(overlapX2-overlapX1)
+		penetration = mgl32.Vec3{penetrationX, 0, 0}
 	} else {
-		penetration = mgl32.Vec3{0, 0, sign(overlapZ2-overlapZ1) * depthZ}
+		penetrationZ := depthZ * sign(overlapZ2-overlapZ1)
+		penetration = mgl32.Vec3{0, 0, penetrationZ}
 	}
 
 	return true, penetration

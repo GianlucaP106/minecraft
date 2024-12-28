@@ -30,6 +30,10 @@ func (l *Light) StartDay(interval time.Duration) {
 
 // Polls the ticker. Should be called at each iteration of game loop.
 func (l *Light) HandleChange() {
+	if l.time == nil {
+		return
+	}
+
 	select {
 	case <-l.time.C:
 		var newLvl float32

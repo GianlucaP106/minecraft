@@ -130,6 +130,7 @@ func (w *World) NearChunks(p mgl32.Vec3) []*Chunk {
 }
 
 // Ensures that the radius around this center is spawned.
+// TODO: find a way to speed up
 func (w *World) SpawnRadius(center mgl32.Vec3) {
 	r := float32(visibleRadius)
 	arc := chunkWidth / float32(2.0)
@@ -220,7 +221,13 @@ func (w *World) SpawnTrees(chunk *Chunk) {
 				if biome < 0.4 {
 					block.blockType = "cactus"
 				} else {
-					block.blockType = "wood"
+					if int(prob*100)%2 == 0 {
+						block.blockType = "dark-wood"
+					} else if int(prob*1000)%2 == 0 {
+						block.blockType = "white-wood"
+					} else {
+						block.blockType = "wood"
+					}
 				}
 			}
 
