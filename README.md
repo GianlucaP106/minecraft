@@ -85,9 +85,9 @@ go run .
 The game is built with a component-based architecture, with key systems including:
 - World: (chunk loading, block updates)
 - World Generator: (noise, terrain, tree, biome)
-- Physics engine (collision, movement)
-- Player (camera, rigid body)
-- Chunks (groups blocks for rendering)
+- Physics engine and Rigid Body (collision, movement)
+- Player, Camera and Ray
+- Chunk and Block
   
 ## Dependencies
 
