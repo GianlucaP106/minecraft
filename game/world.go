@@ -36,6 +36,7 @@ const (
 
 	// misc
 	tasksPerFrame = 3
+	seed          = 10
 )
 
 func newWorld(chunkShader *Shader, atlas *TextureAtlas) *World {
@@ -43,7 +44,7 @@ func newWorld(chunkShader *Shader, atlas *TextureAtlas) *World {
 	w.chunkShader = chunkShader
 	w.chunks = newVecMap[Chunk]()
 	w.atlas = atlas
-	w.generator = newWorldGenerator(91900)
+	w.generator = newWorldGenerator(seed)
 	w.tasks = newQueue()
 	return w
 }
