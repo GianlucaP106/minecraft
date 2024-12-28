@@ -1,6 +1,6 @@
 # Minecraft from scratch
 
-A Minecraft clone written in Go using only OpenGL (no engines or third-party libraries/frameworks)
+A Minecraft clone from scratch (no engines or frameworks)
 
 <img width="1000" alt="demo2" src="https://github.com/user-attachments/assets/610d1f34-cd6f-4e84-89de-86ddf327fe48" />
 
@@ -23,18 +23,18 @@ A Minecraft clone written in Go using only OpenGL (no engines or third-party lib
   </tr>
 </table>
 
-https://github.com/user-attachments/assets/206225e1-12f3-42da-ae13-1566fba06f21
+<https://github.com/user-attachments/assets/206225e1-12f3-42da-ae13-1566fba06f21>
 
 ## Features
 
 - Infinite and procedurally generated terrain using Perlin noise
-- Dynamic chunk loading/unloading based on player position
 - Physics engine with collision detection
 - Day/night cycle
 - Dynamic lighting
 - Block placement and destruction
 - Tree generation
 - Basic cave systems
+- Dynamic chunk loading/unloading based on player position
 - Simple culling techniques for rendering optimization
 - Simple inventory system
 - Flying mode
@@ -42,7 +42,10 @@ https://github.com/user-attachments/assets/206225e1-12f3-42da-ae13-1566fba06f21
 ## Installation
 
 ```bash
+# clone
 git clone https://github.com/GianlucaP106/minecraft minecraft && cd minecraft
+
+# run game (requires go)
 go run .
 ```
 
@@ -83,6 +86,7 @@ go run .
 ![architecture](https://github.com/user-attachments/assets/9945151b-daf4-4918-b670-24881ceb35a4)
 
 The game is built with a component-based architecture, with key systems including:
+
 - World: (chunk loading, block updates)
 - World Generator: (noise, terrain, tree, biome)
 - Physics engine and Rigid Body (collision, movement)
