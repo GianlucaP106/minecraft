@@ -8,9 +8,7 @@ import (
 	"github.com/go-gl/glfw/v3.3/glfw"
 )
 
-// TODO: shadow mapping
-
-// Root app instance.
+// Main game.
 type Game struct {
 	// resources
 	window   *Window

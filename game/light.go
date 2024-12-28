@@ -8,6 +8,8 @@ import (
 	"github.com/go-gl/mathgl/mgl32"
 )
 
+// TODO: shadow mapping
+
 // Maintains the light position and level.
 type Light struct {
 	time      *time.Ticker
