@@ -6,6 +6,8 @@ import (
 	"github.com/go-gl/mathgl/mgl32"
 )
 
+// TODO: persist game
+
 // World holds the terrain, map and manages entity lifecycles.
 type World struct {
 	atlas *TextureAtlas
