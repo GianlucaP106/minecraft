@@ -1,6 +1,6 @@
 # Minecraft from scratch
 
-A Minecraft clone from scratch using modern OpenGL.
+A Minecraft clone from scratch with only modern OpenGL. No game engines or frameworks.
 
 <img width="1000" alt="demo2" src="https://github.com/user-attachments/assets/610d1f34-cd6f-4e84-89de-86ddf327fe48" />
 
