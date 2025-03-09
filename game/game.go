@@ -102,7 +102,10 @@ func (g *Game) Run() {
 		// world
 		g.world.SpawnRadius(g.player.body.position)
 		g.world.ProcessTasks()
-		g.light.HandleChange()
+
+		// day/night (uncomment to toggle)
+		// g.light.HandleChange()
+
 		delta := g.clock.Delta()
 		g.physics.Tick(delta)
 
