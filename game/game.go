@@ -2,7 +2,6 @@ package game
 
 import (
 	"log"
-	"time"
 
 	"github.com/go-gl/gl/v4.1-core/gl"
 	"github.com/go-gl/glfw/v3.3/glfw"
@@ -56,7 +55,9 @@ func (g *Game) Init() {
 	gl.Enable(gl.DEPTH_TEST)
 	g.light = newLight()
 	g.light.SetLevel(1.0)
-	g.light.StartDay(time.Second * 10)
+
+	// day and night (uncomment to togggle along with `HandleChange()` in the game loop)
+	// g.light.StartDay(time.Second * 10)
 
 	// init resource managers and create resources
 	g.shaders = newShaderManager("./shaders")
@@ -102,7 +103,10 @@ func (g *Game) Run() {
 		// world
 		g.world.SpawnRadius(g.player.body.position)
 		g.world.ProcessTasks()
-		g.light.HandleChange()
+
+		// day/night (uncomment to toggle)
+		// g.light.HandleChange()
+
 		delta := g.clock.Delta()
 		g.physics.Tick(delta)
 

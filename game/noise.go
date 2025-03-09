@@ -44,9 +44,9 @@ func newNoiseMapGenerator() *NoiseMapGenerator {
 }
 
 // Seeds the generator by creating a permutation table.
-func (n *NoiseMapGenerator) Seed(seed int64) {
+func (n *NoiseMapGenerator) SetSeed(seed int64) {
 	n.seed = seed
-	n.perm = n.generatePermutation(seed)
+	n.perm = n.generatePermutation()
 }
 
 // Generates a 3D noise map with the given configuration.
@@ -251,13 +251,13 @@ func (n *NoiseMapGenerator) perlinNoise2D(x, y float32, perm []int) float32 {
 }
 
 // Generates permutation table from a given seed.
-func (n *NoiseMapGenerator) generatePermutation(seed int64) []int {
+func (n *NoiseMapGenerator) generatePermutation() []int {
 	perm := make([]int, 256)
 	for i := range perm {
 		perm[i] = i
 	}
 
-	gen := rand.New(rand.NewSource(seed))
+	gen := rand.New(rand.NewSource(n.seed))
 	gen.Shuffle(len(perm), func(i, j int) {
 		perm[i], perm[j] = perm[j], perm[i]
 	})

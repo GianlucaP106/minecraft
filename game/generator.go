@@ -18,7 +18,7 @@ type BlockTypes [chunkWidth][chunkHeight][chunkWidth]string
 func newWorldGenerator(seed int64) *WorldGenerator {
 	w := &WorldGenerator{}
 	w.noise = newNoiseMapGenerator()
-	w.noise.Seed(seed)
+	w.noise.SetSeed(seed)
 	return w
 }
 

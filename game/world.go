@@ -2,6 +2,7 @@ package game
 
 import (
 	"math"
+	"math/rand"
 
 	"github.com/go-gl/mathgl/mgl32"
 )
@@ -200,10 +201,8 @@ func (w *World) Block(pos mgl32.Vec3) *Block {
 func (w *World) SpawnTrees(chunk *Chunk) {
 	biome := w.generator.Biome(mgl32.Vec2{chunk.pos.X(), chunk.pos.Z()})
 	trunkHeight := float32(7.0)
-	width := float32(5.0)
-	leavesHeight := float32(5.0)
 	trees := w.generator.TreeDistribution(mgl32.Vec2{chunk.pos.X(), chunk.pos.Z()})
-	fallout := w.generator.TreeFallout(width, leavesHeight, width)
+	isSmallGenerator := rand.New(rand.NewSource(w.generator.noise.seed + int64(chunk.pos[0])))
 	for x, dist := range trees {
 		for z, prob := range dist {
 			if prob <= 0.65 {
@@ -239,22 +238,35 @@ func (w *World) SpawnTrees(chunk *Chunk) {
 				continue
 			}
 
-			// leaves
-			corner := base.Add(mgl32.Vec3{-(width + 1) / 2, trunkHeight - 2, -(width + 1) / 2})
-			for x := 0; x < int(width); x++ {
-				for y := 0; y < int(leavesHeight); y++ {
-					for z := 0; z < int(width); z++ {
-						block := w.Block(corner.Add(mgl32.Vec3{float32(x), float32(y), float32(z)}))
-						fall := fallout[x][y][z]
-						if fall < 0.05 {
-							block.active = false
-							continue
+			width := float32(5.0)
+			leavesHeight := float32(3.0)
+			small := isSmallGenerator.Float64() > 0.5
+			if small {
+				width = float32(3.0)
+			}
+			corner := base.Add(mgl32.Vec3{-float32(width) / 2, trunkHeight - 2, -float32(width) / 2})
+			for y := 0; y < int(leavesHeight); y++ {
+				layerWidth := width - float32(y)*2
+				start := (width - layerWidth) / 2
+
+				for x := 0; x < int(layerWidth); x++ {
+					for z := 0; z < int(layerWidth); z++ {
+						pos := corner.Add(mgl32.Vec3{start + float32(x), float32(y), start + float32(z)})
+						block := w.Block(pos)
+
+						if x == int(layerWidth)/2 && z == int(layerWidth)/2 {
+							if y < int(leavesHeight)-1 {
+								block.active = true
+								block.blockType = "wood"
+							}
+
+							if !small {
+								continue
+							}
 						}
 
-						if block.blockType != "wood" {
-							block.active = true
-							block.blockType = "leaves"
-						}
+						block.active = true
+						block.blockType = "leaves"
 					}
 				}
 			}
