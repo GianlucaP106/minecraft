@@ -182,7 +182,7 @@ func (w *WorldGenerator) TreeDistribution(pos mgl32.Vec2) [][]float32 {
 }
 
 func (w *WorldGenerator) TreeFallout(width, height, depth float32) [][][]float32 {
-	center := mgl32.Vec3{2.5, 0, 2.5}
+	center := mgl32.Vec3{width / 2, 0, width / 2}
 	config := NoiseConfig3D{
 		width:     width,
 		depth:     depth,
