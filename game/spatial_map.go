@@ -7,19 +7,19 @@ import (
 )
 
 // Vector map providing lookup of objects by 3D coordinate.
-type VecMap[T any] struct {
+type SpatialMap[T any] struct {
 	m map[string]*T
 }
 
-func newVecMap[T any]() VecMap[T] {
-	v := VecMap[T]{
+func newVecMap[T any]() SpatialMap[T] {
+	v := SpatialMap[T]{
 		m: make(map[string]*T),
 	}
 	return v
 }
 
 // Returns the object stored at the coordinate.
-func (v *VecMap[T]) Get(p mgl32.Vec3) *T {
+func (v *SpatialMap[T]) Get(p mgl32.Vec3) *T {
 	key := v.serialize(p)
 	t, e := v.m[key]
 	if !e {
@@ -29,19 +29,19 @@ func (v *VecMap[T]) Get(p mgl32.Vec3) *T {
 }
 
 // Sets the object at the coordinate.
-func (v *VecMap[T]) Set(p mgl32.Vec3, t *T) {
+func (v *SpatialMap[T]) Set(p mgl32.Vec3, t *T) {
 	key := v.serialize(p)
 	v.m[key] = t
 }
 
 // Deletes the object at the coordinate.
-func (v *VecMap[T]) Delete(p mgl32.Vec3) {
+func (v *SpatialMap[T]) Delete(p mgl32.Vec3) {
 	key := v.serialize(p)
 	delete(v.m, key)
 }
 
 // Returns all the objects in a list.
-func (v *VecMap[T]) All() []*T {
+func (v *SpatialMap[T]) All() []*T {
 	out := make([]*T, 0)
 	for _, v := range v.m {
 		out = append(out, v)
@@ -50,6 +50,6 @@ func (v *VecMap[T]) All() []*T {
 }
 
 // Serializes the coordinate.
-func (v *VecMap[T]) serialize(p mgl32.Vec3) string {
+func (v *SpatialMap[T]) serialize(p mgl32.Vec3) string {
 	return fmt.Sprintf("%f_%f_%f", p.X(), p.Y(), p.Z())
 }

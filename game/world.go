@@ -13,7 +13,7 @@ type World struct {
 	atlas *TextureAtlas
 
 	// chunk map, provides lookup by location
-	chunks VecMap[Chunk]
+	chunks SpatialMap[Chunk]
 
 	// shader program that draws the chunks
 	chunkShader *Shader
