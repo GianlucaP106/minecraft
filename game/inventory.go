@@ -17,6 +17,10 @@ func (i *Inventory) Add(blockType string, count int) {
 	i.content[blockType] += count
 }
 
+func (i *Inventory) Set(content map[string]int) {
+	i.content = content
+}
+
 // Returns count of the item.
 func (i *Inventory) Count(blockType string) int {
 	return i.content[blockType]

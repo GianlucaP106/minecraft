@@ -146,6 +146,12 @@ func (h *Hotbar) Add(blockType string) {
 	h.Buffer()
 }
 
+func (h *Hotbar) AddAll(inventory map[string]int) {
+	for blockType := range inventory {
+		h.Add(blockType)
+	}
+}
+
 // Removes a block from the hotbar.
 func (h *Hotbar) Remove(blockType string) {
 	for i := range h.bar {

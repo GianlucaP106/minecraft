@@ -19,7 +19,7 @@ func (c *Clock) Start() float64 {
 }
 
 // Returns the delta since the last delta call.
-func (c *Clock) Delta() float64 {
+func (c *Clock) Tick() float64 {
 	now := glfw.GetTime()
 	delta := now - c.last
 	c.last = now
