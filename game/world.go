@@ -6,10 +6,12 @@ import (
 	"github.com/go-gl/mathgl/mgl32"
 )
 
-// TODO: persist game
-
 // World holds the terrain, map and manages entity lifecycles.
 type World struct {
+	// id from db
+	id int
+
+	// grid of textures for blocks
 	atlas *TextureAtlas
 
 	// chunk map, provides lookup by location
@@ -21,8 +23,11 @@ type World struct {
 	// generates world terrain and content
 	generator *WorldGenerator
 
-	// queues tasks allowing defered processing
-	tasks *TaskQueue
+	// db instance
+	db *Database
+
+	// queue of chunks for deferred world generation
+	spawnQueue *Queue[Chunk]
 }
 
 const (
@@ -37,17 +42,19 @@ const (
 	playerSpawnRadius = 15
 
 	// misc
-	tasksPerFrame = 3
-	seed          = 10
+	deferredChunksPerFrame = 3
+	seed                   = 10
 )
 
-func newWorld(chunkShader *Shader, atlas *TextureAtlas) *World {
+func newWorld(chunkShader *Shader, atlas *TextureAtlas, worldId int, db *Database) *World {
 	w := &World{}
+	w.id = worldId
 	w.chunkShader = chunkShader
 	w.chunks = newVecMap[Chunk]()
 	w.atlas = atlas
 	w.generator = newWorldGenerator(seed)
-	w.tasks = newQueue()
+	w.db = db
+	w.spawnQueue = newQueue[Chunk]()
 	return w
 }
 
@@ -61,14 +68,23 @@ func (w *World) Init() {
 	}
 }
 
-// Processes tasks queued.
-func (w *World) ProcessTasks() {
-	for i := 0; i < tasksPerFrame; i++ {
-		f := w.tasks.Pop()
-		if f == nil {
-			break
-		}
-		f()
+// Persists the block to db.
+// Persists the chunk if it doesnt exist yet.
+func (w *World) SaveBlock(b *Block) {
+	// create chunk in db if it is was never persisted
+	if b.chunk.id == -1 {
+		x, y, z := int(b.chunk.pos.X()), int(b.chunk.pos.Y()), int(b.chunk.pos.Z())
+		b.chunk.id = w.db.CreateChunk(w.id, x, y, z)
+	}
+
+	// create or update block with updated values
+	blockEntity := w.db.Block(b.chunk.id, b.i, b.j, b.k)
+	if blockEntity != nil {
+		blockEntity.blockType = b.blockType
+		blockEntity.active = b.active
+		w.db.UpdateBlock(blockEntity)
+	} else {
+		w.db.CreateBlock(b.chunk.id, b.i, b.j, b.k, b.blockType, b.active)
 	}
 }
 
@@ -81,16 +97,29 @@ func (w *World) SpawnChunk(pos mgl32.Vec3) *Chunk {
 		panic("invalid chunk position")
 	}
 
-	// init chunk, attribs, pointers and save
+	// init default chunk, attribs, pointers and save
 	chunk := newChunk(w.chunkShader, w.atlas, pos)
 	w.chunks.Set(pos, chunk)
 	s := w.generator.Terrain(chunk.pos)
 	chunk.Init(s)
 
-	w.tasks.Queue(func() {
-		w.SpawnTrees(chunk)
-		chunk.Buffer()
-	})
+	// get persisted chunk and blocks and merge
+	x, y, z := int(pos.X()), int(pos.Y()), int(pos.Z())
+	chunkEntity := w.db.FindChunk(w.id, x, y, z)
+	if chunkEntity != nil {
+		persistedBlocks := w.db.Blocks(chunkEntity.id)
+		for _, be := range persistedBlocks {
+			block := chunk.blocks[be.i][be.j][be.k]
+			block.active = be.active
+			block.blockType = be.blockType
+		}
+
+		// importantly set the chunk ID
+		chunk.id = chunkEntity.id
+	}
+
+	// generate more things in future frames
+	w.spawnQueue.Push(chunk)
 
 	chunk.Buffer()
 	return chunk
@@ -133,7 +162,6 @@ func (w *World) NearChunks(p mgl32.Vec3) []*Chunk {
 }
 
 // Ensures that the radius around this center is spawned.
-// TODO: find a way to speed up
 func (w *World) SpawnRadius(center mgl32.Vec3) {
 	r := float32(visibleRadius)
 	arc := chunkWidth / float32(2.0)
@@ -154,7 +182,7 @@ func (w *World) SpawnRadius(center mgl32.Vec3) {
 	}
 }
 
-// Returns the block at the given position.
+// Returns the block at the given positions.
 // This takes any position in the world, including non-round postions.
 // Will spawn chunk if it doesnt exist yet.
 func (w *World) Block(pos mgl32.Vec3) *Block {
@@ -257,6 +285,17 @@ func (w *World) SpawnTrees(chunk *Chunk) {
 					}
 				}
 			}
+		}
+	}
+}
+
+// Processes tasks queued.
+func (w *World) ProcessQueuedChunks() {
+	for i := 0; i < deferredChunksPerFrame; i++ {
+		chunk := w.spawnQueue.Pop()
+		if chunk != nil {
+			w.SpawnTrees(chunk)
+			chunk.Buffer()
 		}
 	}
 }

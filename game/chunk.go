@@ -7,6 +7,9 @@ import (
 
 // Chunk groups blocks for rendering and operations.
 type Chunk struct {
+	// from db, can be empty
+	id int
+
 	// resources
 	atlas  *TextureAtlas
 	shader *Shader
@@ -36,6 +39,7 @@ const (
 
 func newChunk(shader *Shader, atlas *TextureAtlas, pos mgl32.Vec3) *Chunk {
 	c := &Chunk{}
+	c.id = -1
 	c.shader = shader
 	c.pos = pos
 	c.atlas = atlas

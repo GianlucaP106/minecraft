@@ -25,12 +25,9 @@ const (
 	playerRadius = 20
 )
 
-// start position in the world.
-var startPosition = mgl32.Vec3{100.5, 125.5, 100.5}
-
-func newPlayer() *Player {
+func newPlayer(initialPos mgl32.Vec3) *Player {
 	p := &Player{}
-	p.camera = newCamera(startPosition)
+	p.camera = newCamera(initialPos)
 	p.body = &RigidBody{
 		position: p.camera.pos,
 		mass:     playerMass,
