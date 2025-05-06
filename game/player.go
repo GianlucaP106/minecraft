@@ -22,7 +22,8 @@ const (
 	playerSpeed  = 6.5
 
 	// surroundings
-	playerRadius = 20
+	playerRadius               = 20
+	cameraCycloidCancelEpsilon = 0.1
 )
 
 func newPlayer(initialPos mgl32.Vec3) *Player {
@@ -36,7 +37,7 @@ func newPlayer(initialPos mgl32.Vec3) *Player {
 		width:    playerWidth,
 
 		// set call back to update camera position
-		cb: func(rb *RigidBody) {
+		cb: func() {
 			p.setCameraPosition()
 		},
 	}
@@ -45,13 +46,13 @@ func newPlayer(initialPos mgl32.Vec3) *Player {
 }
 
 // Sets the camera position with a walking transformation.
+// Applies a cycloid translation to simulate walking bounce.
 func (p *Player) setCameraPosition() {
 	if !p.body.grounded {
 		p.camera.pos = p.body.position
 		return
 	}
 
-	// apply a cycloid translation to simulate walking bounce
 	d := p.body.tripDistance * 1.25
 
 	// reduce distance iterpolated when trip is starting (until 2)
@@ -60,6 +61,8 @@ func (p *Player) setCameraPosition() {
 	x := 0.05 * math.Cos(float64(math.Pi/2+d))
 	y := 0.05 * math.Sin(float64(math.Pi/2-2*d))
 	trans := mgl32.Translate3D(float32(x), float32(y), 0)
+
+	// trans.Mul4x1(p.body.position.Vec4(1)).Vec3()
 	p.camera.pos = trans.Mul4x1(p.body.position.Vec4(1)).Vec3()
 }
 
@@ -73,15 +76,16 @@ func (p *Player) Ray() Ray {
 	return ray
 }
 
-// Get movement vector.
-func (p *Player) Movement(forward, right float32) mgl32.Vec3 {
+// Applies movement to the rigid body by normalizing and updating velocity.
+func (p *Player) Move(forward, right float32) {
 	// combine movement into vector and normalize
 	movement := p.camera.view.Mul(forward).Add(p.camera.cross().Mul(right))
 	if movement.Len() > 0 {
 		movement = movement.Normalize()
 	}
 
-	return movement.Mul(playerSpeed)
+	movement = movement.Mul(playerSpeed)
+	p.body.Move(movement)
 }
 
 // Returns true if player sees the chunk.

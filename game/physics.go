@@ -7,7 +7,14 @@ import (
 // PhysicsEngine applies physics computations on registered RigidBodies.
 // The Tick method advances the simulation and computes acceleration, velocity and posistion from applied forces.
 type PhysicsEngine struct {
-	registrations map[*RigidBody]bool
+	// rigi body registrations to compute transformations
+	bodies map[*RigidBody]bool
+
+	// colliders that need to be taken account (can be reset at each frame if needed)
+	colliders []Box
+
+	// gets the box located at a given point in the world (required for collisions)
+	discover func(mgl32.Vec3) Box
 }
 
 const (
@@ -20,137 +27,133 @@ const (
 	positionHistoryLength   = 10
 )
 
-func newPhysicsEngine() *PhysicsEngine {
+func newPhysicsEngine(discover func(mgl32.Vec3) Box) *PhysicsEngine {
 	return &PhysicsEngine{
-		registrations: make(map[*RigidBody]bool),
+		bodies:    make(map[*RigidBody]bool),
+		colliders: make([]Box, 0),
+		discover:  discover,
 	}
 }
 
 // Ticks the simulation.
 // Updates all registrations.
 func (p *PhysicsEngine) Tick(delta float64) {
-	for rb := range p.registrations {
+	for rb := range p.bodies {
 		p.update(rb, delta)
 		if rb.cb != nil {
-			rb.cb(rb)
+			rb.cb()
 		}
 	}
 }
 
 // Registers a RigidBody to be computed on each tick.
 func (p *PhysicsEngine) Register(body *RigidBody) {
-	p.registrations[body] = true
+	p.bodies[body] = true
 }
 
 // Unregisters a RigidBody.
 func (p *PhysicsEngine) Unregister(body *RigidBody) {
-	delete(p.registrations, body)
+	delete(p.bodies, body)
+}
+
+func (p *PhysicsEngine) SetColliders(colliders []Box) {
+	p.colliders = colliders
 }
 
 // Update the rigid bodies with derived physics.
 func (p *PhysicsEngine) update(body *RigidBody, delta float64) {
-	// handle gravity
+	// apply gravitational force
 	if !body.grounded && !body.flying {
 		body.force = body.force.Add(mgl32.Vec3{0, body.mass * -gravity, 0})
 	}
 
-	// compute and set acceleration, velocity and posistion
+	// compute and set acceleration and velocity from the net force
 	acc := body.force.Mul(1 / body.mass)
 	body.velocity = body.velocity.Add(acc.Mul(float32(delta)))
 
+	// apply some game specific condtions directly on velocity for smoothness
+	if body.grounded {
+		body.velocity[1] = 0
+	}
+	if body.flying {
+		body.velocity = body.velocity.Mul(flyingSpeedMultipier)
+	}
+
+	// world position of the box this body is on
+	worldPosition := p.discover(body.position).center
+
+	// keep old position to compute a proper delta later
+	oldPosition := body.position
+
+	// compute postion before collision resolution
 	dpos := body.velocity.Mul(float32(delta))
-	body.appendHistory()
-	body.position = body.position.Add(dpos)
-	body.collider = &Box{
-		min: body.position.Sub(mgl32.Vec3{body.width / 2, body.height, body.width / 2}),
-		max: body.position.Add(mgl32.Vec3{body.width / 2, 0, body.width / 2}),
-	}
-
-	// increment the trip distance
-	body.tripDistance += dpos.Len()
-
-	// reset the trip distance if body is not moving
-	if dpos.Len() == 0 && body.tripDistance > 0 {
-		body.tripDistance = 0
-	}
+	body.setPosition(body.position.Add(dpos))
 
 	// reset force
 	body.force = mgl32.Vec3{}
+
+	// keep track of if grounded and how much penetration
+	var groundedDepth *float32
+
+	// resolve collisions along the XZ directions
+	for _, collider := range p.colliders {
+		// if this is a ground of ceiling collider
+		if collider.center.X() == worldPosition.X() && collider.center.Z() == worldPosition.Z() {
+			b, depth := collider.Intersection(body.collider, 1)
+			if b {
+				groundedDepth = &depth
+			}
+		} else { // if this is a wall collider
+			b, pen := body.collider.IntersectionXZ(collider)
+			if b {
+				body.setPosition(body.position.Sub(pen))
+			}
+		}
+	}
+
+	// resolve collisions along the Y direction
+	if groundedDepth != nil {
+		body.grounded = true
+		body.position = body.position.Add(mgl32.Vec3{0, *groundedDepth, 0})
+	} else {
+		body.grounded = false
+	}
+
+	// recompute delta pos taking account collisions resolution
+	deltaPos := body.position.Sub(oldPosition).Len()
+
+	// update the trip distance and delta
+	body.tripDistance += deltaPos
+	if deltaPos == 0 {
+		body.tripDistance = 0
+	}
 }
 
 // Rigid body contains state for one entity.
 type RigidBody struct {
-	cb              func(*RigidBody)
-	collider        *Box
-	positionHistory []mgl32.Vec3
-	tripDistance    float32
-	position        mgl32.Vec3
-	velocity        mgl32.Vec3
-	force           mgl32.Vec3
-	mass            float32
-	width, height   float32
-	flying          bool
-	grounded        bool
+	// a call back function for after being updated
+	cb func()
+
+	// the collider for this body
+	collider      Box
+	width, height float32
+
+	// accumulated trip distance (from last rest)
+	tripDistance float32
+
+	// core components
+	position mgl32.Vec3
+	velocity mgl32.Vec3
+	force    mgl32.Vec3
+	mass     float32
+
+	// special states
+	flying   bool
+	grounded bool
 }
 
-// Moves a rigid body using direct velocity.
-// Takes an optional ground and walls will get computed as colliders.
-// TODO: handle ceiling
-func (r *RigidBody) Move(movement mgl32.Vec3, ground *Box, _ *Box, walls []Box) {
-	if ground != nil && !r.grounded {
-		// set grounded only the first time (when in contact)
-		r.grounded = true
-		r.velocity[1] = 0
-		if r.collider != nil {
-			// compute collision with ground and translate body up
-			b, depth := ground.IntersectionY(*r.collider)
-			if b {
-				r.position = r.position.Add(mgl32.Vec3{0, depth, 0})
-			}
-		}
-
-	} else if ground == nil {
-		r.grounded = false
-	}
-
-	// if in the air we can suppress movement
-	if !r.grounded && !r.flying {
-		movement = movement.Mul(airMovementSuppression)
-	}
-
-	// temporary multiplier
-	if r.flying {
-		movement = movement.Mul(flyingSpeedMultipier)
-	}
-
-	// hanlde wall collisions
-	if r.collider != nil {
-		for _, c := range walls {
-			b, penetration := r.collider.IntersectionXZ(c)
-			if !b {
-				continue
-			}
-
-			if penetration.Len() <= penetrationEpsilonSmall {
-				// make movement 0 if penetration is small and dont adjust position
-				for i := 0; i < 3; i++ {
-					if mgl32.Abs(penetration[i]) > 0.0 && sign(movement[i]) == sign(penetration[i]) {
-						// if the movement alignes with the penetration, 0-out that component of the movement
-						movement[i] = 0
-					}
-				}
-			} else if penetration.Len() > penetrationEpsilonBig {
-				// TODO: find a better solution for when collisions are big
-				// HACK: rewind position back
-				r.position = r.positionHistory[len(r.positionHistory)-1]
-			} else {
-				// adjust position of rb by moving back the same as the pentration
-				r.position = r.position.Sub(penetration)
-			}
-		}
-	}
-
-	// set the movement exactly (no addition) for x,z but keep y for gravity (if no flying)
+// Converts movement vector into a velocity change (not force for now).
+func (r *RigidBody) Move(movement mgl32.Vec3) {
 	var yComponent float32
 	if r.flying {
 		yComponent = movement.Y()
@@ -166,12 +169,11 @@ func (r *RigidBody) Jump() {
 	r.grounded = false
 }
 
-func (r *RigidBody) appendHistory() {
-	if r.positionHistory == nil {
-		r.positionHistory = make([]mgl32.Vec3, 0)
-	}
-	r.positionHistory = append([]mgl32.Vec3{r.position}, r.positionHistory...)
-	if len(r.positionHistory) > positionHistoryLength {
-		r.positionHistory = r.positionHistory[:len(r.positionHistory)-2]
+// Sets position and sets a new collider.
+func (r *RigidBody) setPosition(p mgl32.Vec3) {
+	r.position = p
+	r.collider = Box{
+		min: r.position.Sub(mgl32.Vec3{r.width / 2, r.height, r.width / 2}),
+		max: r.position.Add(mgl32.Vec3{r.width / 2, 0, r.width / 2}),
 	}
 }

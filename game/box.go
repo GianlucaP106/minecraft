@@ -84,25 +84,17 @@ func (b Box) IntersectionXZ(b2 Box) (bool, mgl32.Vec3) {
 	return true, penetration
 }
 
-// Returns true of the boxes intersect along the Y axis.
-func (b Box) IntersectionY(b2 Box) (bool, float32) {
-	if !(b.min.Y() <= b2.max.Y() &&
-		b.max.Y() >= b2.min.Y()) {
+// Returns the the intersection along the given axis.
+func (b Box) Intersection(b2 Box, axis int) (bool, float32) {
+	if !(b.min[axis] <= b2.max[axis] &&
+		b.max[axis] >= b2.min[axis]) {
 		return false, 0
 	}
 
-	overlapY1 := b.max.Y() - b2.min.Y()
-	overlapY2 := b2.max.Y() - b.min.Y()
-	depthY := min(overlapY1, overlapY2)
-	return true, depthY
-}
-
-// Combines 2 boxes into 1 by comparing along Y.
-func (b Box) CombineY(b2 Box) Box {
-	if b.min.Y() < b2.min.Y() {
-		return newBox(b.min, b2.max)
-	}
-	return newBox(b2.min, b.max)
+	overlap1 := b.max[axis] - b2.min[axis]
+	overlap2 := b2.max[axis] - b.min[axis]
+	depth := min(overlap1, overlap2)
+	return true, depth
 }
 
 // Returns the 8 corners of the box.

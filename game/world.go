@@ -161,7 +161,37 @@ func (w *World) NearChunks(p mgl32.Vec3) []*Chunk {
 	return o
 }
 
+// Returns the nearby blocks from a postion (i.e the walls, floor and cieling).
+func (w *World) SurroundingBoxes(p mgl32.Vec3) []Box {
+	blocks := make([]*Block, 0)
+	currentBlock := w.Block(p)
+	curPos := currentBlock.WorldPos()
+	blocks = append(blocks,
+		w.Block(curPos.Add(mgl32.Vec3{1, 0, 0})),
+		w.Block(curPos.Add(mgl32.Vec3{-1, 0, 0})),
+		w.Block(curPos.Add(mgl32.Vec3{0, 0, 1})),
+		w.Block(curPos.Add(mgl32.Vec3{0, 0, -1})),
+
+		w.Block(curPos.Add(mgl32.Vec3{1, -1, 0})),
+		w.Block(curPos.Add(mgl32.Vec3{-1, -1, 0})),
+		w.Block(curPos.Add(mgl32.Vec3{0, -1, 1})),
+		w.Block(curPos.Add(mgl32.Vec3{0, -1, -1})),
+
+		w.Block(curPos.Add(mgl32.Vec3{0, -2, 0})),
+	)
+
+	boxes := make([]Box, 0)
+	for _, b := range blocks {
+		if b.active {
+			boxes = append(boxes, b.Box())
+		}
+	}
+
+	return boxes
+}
+
 // Ensures that the radius around this center is spawned.
+// TODO: rewrite to simply spawn a square not circle.
 func (w *World) SpawnRadius(center mgl32.Vec3) {
 	r := float32(visibleRadius)
 	arc := chunkWidth / float32(2.0)
