@@ -25,9 +25,6 @@ type World struct {
 
 	// db instance
 	db *Database
-
-	// queue of chunks for deferred world generation
-	spawnQueue *Queue[Chunk]
 }
 
 const (
@@ -37,8 +34,8 @@ const (
 	maxHeight = 200.0
 
 	// rendering
-	visibleRadius     = 130.0
-	destroyRadius     = 300.0
+	visibleRadius     = 120.0
+	destroyRadius     = 1000.0
 	playerSpawnRadius = 15
 
 	// misc
@@ -54,7 +51,6 @@ func newWorld(chunkShader *Shader, atlas *TextureAtlas, worldId int, db *Databas
 	w.atlas = atlas
 	w.generator = newWorldGenerator(seed)
 	w.db = db
-	w.spawnQueue = newQueue[Chunk]()
 	return w
 }
 
@@ -118,9 +114,7 @@ func (w *World) SpawnChunk(pos mgl32.Vec3) *Chunk {
 		chunk.id = chunkEntity.id
 	}
 
-	// generate more things in future frames
-	w.spawnQueue.Push(chunk)
-
+	w.SpawnTrees(chunk)
 	chunk.Buffer()
 	return chunk
 }
@@ -315,17 +309,6 @@ func (w *World) SpawnTrees(chunk *Chunk) {
 					}
 				}
 			}
-		}
-	}
-}
-
-// Processes tasks queued.
-func (w *World) ProcessQueuedChunks() {
-	for i := 0; i < deferredChunksPerFrame; i++ {
-		chunk := w.spawnQueue.Pop()
-		if chunk != nil {
-			w.SpawnTrees(chunk)
-			chunk.Buffer()
 		}
 	}
 }

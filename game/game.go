@@ -119,12 +119,13 @@ func (g *Game) Init() {
 // Runs the game loop.
 func (g *Game) Run() {
 	defer g.window.Terminate()
-	g.clock.Start()
+	g.world.SpawnRadius(g.player.body.position)
 
 	go func() {
 		log.Println(http.ListenAndServe(":6060", nil))
 	}()
 
+	g.clock.Start()
 	for !g.window.ShouldClose() && !g.window.IsPressed(glfw.KeyQ) {
 		// clear buffers
 		gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
@@ -140,7 +141,6 @@ func (g *Game) Run() {
 
 		// world
 		g.world.SpawnRadius(g.player.body.position)
-		g.world.ProcessQueuedChunks()
 
 		// day/night (uncomment to toggle)
 		// g.light.HandleChange()
