@@ -6,11 +6,11 @@ A Minecraft clone from scratch with only modern OpenGL. No game engines or frame
 
 <table>
   <tr>
-    <td><img width="1000" alt="demo1" src="https://github.com/user-attachments/assets/4a6416e1-7aff-4b0e-a95d-a32f59e6379b" /></td>
-    <td><img width="1000" alt="demo3" src="https://github.com/user-attachments/assets/6e207385-911e-4831-80bb-cb315d3b3c48" /></td>
+    <td><img width="800" alt="demo1" src="https://github.com/user-attachments/assets/4a6416e1-7aff-4b0e-a95d-a32f59e6379b" /></td>
+    <td><img width="800" alt="Screenshot 2025-05-06 at 10 01 25 PM" src="https://github.com/user-attachments/assets/382b472a-4c17-4bf1-b3bf-0a7c9013a9f7" /></td>
   </tr>
   <tr>
-    <td><img width="800" alt="demo6" src="https://github.com/user-attachments/assets/10a69c8b-47ae-4462-b3cb-cd6c7abd11c6" /></td>
+    <td><img width="800" alt="Screenshot 2025-05-06 at 9 28 36 PM" src="https://github.com/user-attachments/assets/6b0d54e2-573c-40f7-95e4-35c85bec5faa" /></td>
     <td><img width="800" alt="demo4" src="https://github.com/user-attachments/assets/931655a5-40fe-41a8-8342-628319510617" /></td>
   </tr>
   <tr>
@@ -19,7 +19,7 @@ A Minecraft clone from scratch with only modern OpenGL. No game engines or frame
   </tr>
   <tr>
     <td><img width="800" alt="demo8" src="https://github.com/user-attachments/assets/d23c26e5-695e-4b16-aad8-5b65d1bca40c" /></td>
-    <td><img width="800" alt="demo9" src="https://github.com/user-attachments/assets/f9737995-3190-407b-8dbf-d8d5b736728f" /></td>
+    <td><img width="800" alt="demo3" src="https://github.com/user-attachments/assets/6e207385-911e-4831-80bb-cb315d3b3c48" /></td>
   </tr>
 </table>
 
