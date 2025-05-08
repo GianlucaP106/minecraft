@@ -1,6 +1,7 @@
 package game
 
 import (
+	"log"
 	"math"
 
 	"github.com/go-gl/mathgl/mgl32"
@@ -25,6 +26,8 @@ type World struct {
 
 	// db instance
 	db *Database
+
+	spawnQueue *Queue[mgl32.Vec3]
 }
 
 const (
@@ -34,13 +37,14 @@ const (
 	maxHeight = 200.0
 
 	// rendering
-	visibleRadius     = 120.0
-	destroyRadius     = 1000.0
-	playerSpawnRadius = 15
+	visibleRadius     = 120.0  // blocks
+	spawnRadius       = 5      // chunks
+	destroyRadius     = 1000.0 // blocks
+	playerSpawnRadius = 15     // blocks
 
 	// misc
-	deferredChunksPerFrame = 3
-	seed                   = 10
+	deferredChunkSpawnsPerFrame = 3
+	seed                        = 10
 )
 
 func newWorld(chunkShader *Shader, atlas *TextureAtlas, worldId int, db *Database) *World {
@@ -50,14 +54,15 @@ func newWorld(chunkShader *Shader, atlas *TextureAtlas, worldId int, db *Databas
 	w.chunks = newVecMap[Chunk]()
 	w.atlas = atlas
 	w.generator = newWorldGenerator(seed)
+	w.spawnQueue = newQueue[mgl32.Vec3]()
 	w.db = db
 	return w
 }
 
 func (w *World) Init() {
 	s := playerSpawnRadius
-	for i := 0; i < s; i++ {
-		for j := 0; j < s; j++ {
+	for i := range s {
+		for j := range s {
 			p := mgl32.Vec3{float32(chunkWidth * i), 0, float32(chunkWidth * j)}
 			w.SpawnChunk(p)
 		}
@@ -90,7 +95,12 @@ func (w *World) SpawnChunk(pos mgl32.Vec3) *Chunk {
 	if int(pos.X())%chunkWidth != 0 ||
 		int(pos.Y())%chunkHeight != 0 ||
 		int(pos.Z())%chunkWidth != 0 {
-		panic("invalid chunk position")
+		log.Panicf("invalid chunk pos %v", pos)
+	}
+
+	// already spawned
+	if c := w.chunks.Get(pos); c != nil {
+		return c
 	}
 
 	// init default chunk, attribs, pointers and save
@@ -137,24 +147,6 @@ func (w *World) Ground(x, z float32) *Block {
 	return nil
 }
 
-// Returns the nearby chunks.
-// Despaws chunks that are far away.
-func (w *World) NearChunks(p mgl32.Vec3) []*Chunk {
-	o := make([]*Chunk, 0)
-	for _, c := range w.chunks.All() {
-		chunkCenter := c.pos.Add(mgl32.Vec3{chunkWidth / 2, chunkHeight / 2, chunkWidth / 2})
-		diff := p.Sub(chunkCenter)
-		diffl := diff.Len()
-		if diffl <= visibleRadius {
-			o = append(o, c)
-		} else if diffl > destroyRadius {
-			w.DespawnChunk(c)
-		}
-	}
-
-	return o
-}
-
 // Returns the nearby blocks from a postion (i.e the walls, floor and cieling).
 func (w *World) SurroundingBoxes(p mgl32.Vec3) []Box {
 	blocks := make([]*Block, 0)
@@ -184,8 +176,22 @@ func (w *World) SurroundingBoxes(p mgl32.Vec3) []Box {
 	return boxes
 }
 
-// Ensures that the radius around this center is spawned.
-// TODO: rewrite to simply spawn a square not circle.
+// Places the chunks surrounding the position in a spawn queue.
+// Spawns a square around postion.
+func (w *World) SpawnSurroundings(p mgl32.Vec3) {
+	startChunk, _, _, _ := w.Position(p.Sub(mgl32.Vec3{spawnRadius * chunkWidth, 0, spawnRadius * chunkWidth}))
+	for x := range spawnRadius * 2 {
+		for z := range spawnRadius * 2 {
+			pos := startChunk.Add(mgl32.Vec3{float32(x * chunkWidth), 0, float32(z * chunkWidth)})
+			centerPos := pos.Add(mgl32.Vec3{chunkWidth / 2, chunkHeight / 2, chunkWidth / 2})
+			if centerPos.Sub(p).Len() <= visibleRadius && w.chunks.Get(pos) == nil {
+				w.spawnQueue.Push(&pos)
+			}
+		}
+	}
+}
+
+// Spawns a circle around passed postion.
 func (w *World) SpawnRadius(center mgl32.Vec3) {
 	r := float32(visibleRadius)
 	arc := chunkWidth / float32(2.0)
@@ -195,7 +201,7 @@ func (w *World) SpawnRadius(center mgl32.Vec3) {
 	iterations := int((2 * math.Pi * r) / arc)
 
 	v := mgl32.Vec2{r, 0}
-	for i := 0; i < iterations; i++ {
+	for range iterations {
 		// simply call block to trigger a spawn if chunk doesnt exist
 		p := center.Add(mgl32.Vec3{v.X(), 0, v.Y()})
 		w.Block(p)
@@ -206,10 +212,41 @@ func (w *World) SpawnRadius(center mgl32.Vec3) {
 	}
 }
 
+// Returns the nearby chunks.
+// Despaws chunks that are far away.
+func (w *World) NearChunks(p mgl32.Vec3) []*Chunk {
+	o := make([]*Chunk, 0)
+	for _, c := range w.chunks.All() {
+		chunkCenter := c.pos.Add(mgl32.Vec3{chunkWidth / 2, chunkHeight / 2, chunkWidth / 2})
+		diff := p.Sub(chunkCenter)
+		diffl := diff.Len()
+		if diffl <= visibleRadius {
+			o = append(o, c)
+		} else if diffl > destroyRadius {
+			w.DespawnChunk(c)
+		}
+	}
+
+	return o
+}
+
 // Returns the block at the given positions.
 // This takes any position in the world, including non-round postions.
 // Will spawn chunk if it doesnt exist yet.
 func (w *World) Block(pos mgl32.Vec3) *Block {
+	chunkPos, i, j, k := w.Position(pos)
+	chunk := w.chunks.Get(chunkPos)
+	if chunk == nil {
+		chunk = w.SpawnChunk(chunkPos)
+	}
+
+	block := chunk.blocks[i][j][k]
+	return block
+}
+
+// This takes any position in the world, including non-round postions
+// and returns the containing chunk and block positions.
+func (w *World) Position(pos mgl32.Vec3) (chunk mgl32.Vec3, i int, j int, k int) {
 	floor := func(v float32) int {
 		return int(math.Floor(float64(v)))
 	}
@@ -239,13 +276,25 @@ func (w *World) Block(pos mgl32.Vec3) *Block {
 	startZ := z - zoffset
 
 	chunkPos := mgl32.Vec3{float32(startX), float32(startY), float32(startZ)}
-	chunk := w.chunks.Get(chunkPos)
-	if chunk == nil {
-		chunk = w.SpawnChunk(chunkPos)
-	}
+	return chunkPos, xoffset, yoffset, zoffset
+}
 
-	block := chunk.blocks[xoffset][yoffset][zoffset]
-	return block
+// Spawns one frame worth of chunks from the spawn queue.
+func (w *World) ProcessSpawnQueue() {
+	for range deferredChunkSpawnsPerFrame {
+		pos := w.spawnQueue.Pop()
+		if pos != nil {
+			w.SpawnChunk(*pos)
+		}
+	}
+}
+
+func (w *World) DrainSpawnQueue() {
+	last := w.spawnQueue.Pop()
+	for last != nil {
+		w.SpawnChunk(*last)
+		last = w.spawnQueue.Pop()
+	}
 }
 
 func (w *World) SpawnTrees(chunk *Chunk) {
@@ -292,9 +341,9 @@ func (w *World) SpawnTrees(chunk *Chunk) {
 
 			// leaves
 			corner := base.Add(mgl32.Vec3{-(width + 1) / 2, trunkHeight - 2, -(width + 1) / 2})
-			for x := 0; x < int(width); x++ {
-				for y := 0; y < int(leavesHeight); y++ {
-					for z := 0; z < int(width); z++ {
+			for x := range int(width) {
+				for y := range int(leavesHeight) {
+					for z := range int(width) {
 						block := w.Block(corner.Add(mgl32.Vec3{float32(x), float32(y), float32(z)}))
 						fall := fallout[x][y][z]
 						if fall < 0.05 {

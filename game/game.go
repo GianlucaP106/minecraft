@@ -119,7 +119,8 @@ func (g *Game) Init() {
 // Runs the game loop.
 func (g *Game) Run() {
 	defer g.window.Terminate()
-	g.world.SpawnRadius(g.player.body.position)
+	g.world.SpawnSurroundings(g.player.body.position)
+	g.world.DrainSpawnQueue()
 
 	go func() {
 		log.Println(http.ListenAndServe(":6060", nil))
@@ -140,7 +141,8 @@ func (g *Game) Run() {
 		g.HandleInventorySelect()
 
 		// world
-		g.world.SpawnRadius(g.player.body.position)
+		g.world.SpawnSurroundings(g.player.body.position)
+		g.world.ProcessSpawnQueue()
 
 		// day/night (uncomment to toggle)
 		// g.light.HandleChange()
@@ -153,6 +155,7 @@ func (g *Game) Run() {
 		g.crosshair.Draw()
 		g.hotbar.Draw()
 
+		// for _, c := range g.world.SpawnSurroundings(g.player.body.position) {
 		for _, c := range g.world.NearChunks(g.player.body.position) {
 			// cull chunks that are not in view
 			if !g.player.Sees(c) {

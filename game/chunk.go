@@ -50,9 +50,9 @@ func newChunk(shader *Shader, atlas *TextureAtlas, pos mgl32.Vec3) *Chunk {
 // Sets the given block to be active as the first block.
 func (c *Chunk) Init(types BlockTypes) {
 	gl.UseProgram(c.shader.handle)
-	for i := 0; i < chunkWidth; i++ {
-		for j := 0; j < chunkHeight; j++ {
-			for k := 0; k < chunkWidth; k++ {
+	for i := range chunkWidth {
+		for j := range chunkHeight {
+			for k := range chunkWidth {
 				b := newBlock(c, i, j, k, "bedrock")
 				c.blocks[i][j][k] = b
 
