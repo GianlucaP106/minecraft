@@ -187,5 +187,11 @@ func (h *Hotbar) Draw() {
 	modelUniform := gl.GetUniformLocation(h.shader.handle, gl.Str("model\x00"))
 	gl.UniformMatrix4fv(modelUniform, 1, false, &model[0])
 
+	texUniform := gl.GetUniformLocation(h.shader.handle, gl.Str("tex\x00"))
+	gl.Uniform1i(texUniform, 0)
+
+	gl.ActiveTexture(gl.TEXTURE0)
+	gl.BindTexture(gl.TEXTURE_2D, h.atlas.texture.handle)
+
 	gl.DrawArrays(gl.TRIANGLES, 0, int32(h.vertCount))
 }

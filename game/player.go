@@ -77,7 +77,7 @@ func (p *Player) Ray() Ray {
 }
 
 // Applies movement to the rigid body by normalizing and updating velocity.
-func (p *Player) Move(forward, right float32) {
+func (p *Player) Move(forward, right float32, fly bool) {
 	// combine movement into vector and normalize
 	movement := p.camera.view.Mul(forward).Add(p.camera.cross().Mul(right))
 	if movement.Len() > 0 {
@@ -85,7 +85,7 @@ func (p *Player) Move(forward, right float32) {
 	}
 
 	movement = movement.Mul(playerSpeed)
-	p.body.Move(movement)
+	p.body.Move(movement, fly)
 }
 
 // Returns true if player sees the chunk.

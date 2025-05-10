@@ -12,6 +12,9 @@ uniform vec3 lookedAtBlock;
 // is looking at chunk
 uniform bool isLooking;
 
+// light matrix
+uniform mat4 lightSpaceMatrix;
+
 // position of vertex without tranform
 in vec3 vert;
 
@@ -26,6 +29,7 @@ out vec2 fragTexCoord;
 out float selected;
 out vec3 fragNorm;
 out vec3 fragPos;
+out vec4 fragPosLight;
 
 void main() {
     // world pos of vertex
@@ -49,6 +53,7 @@ void main() {
 
     fragTexCoord = texCoord;
     fragPos = vec3(pos);
+    fragPosLight = lightSpaceMatrix * pos;
     gl_Position = view * pos;
 }
 

@@ -19,7 +19,7 @@ type World struct {
 	chunks SpatialMap[Chunk]
 
 	// shader program that draws the chunks
-	chunkShader *Shader
+	chunkShader, chunkShadowMapShader *Shader
 
 	// generates world terrain and content
 	generator *WorldGenerator
@@ -47,10 +47,11 @@ const (
 	seed                        = 10
 )
 
-func newWorld(chunkShader *Shader, atlas *TextureAtlas, worldId int, db *Database) *World {
+func newWorld(chunkShader, chunkShadowMapShader *Shader, atlas *TextureAtlas, worldId int, db *Database) *World {
 	w := &World{}
 	w.id = worldId
 	w.chunkShader = chunkShader
+	w.chunkShadowMapShader = chunkShadowMapShader
 	w.chunks = newVecMap[Chunk]()
 	w.atlas = atlas
 	w.generator = newWorldGenerator(seed)
@@ -104,7 +105,7 @@ func (w *World) SpawnChunk(pos mgl32.Vec3) *Chunk {
 	}
 
 	// init default chunk, attribs, pointers and save
-	chunk := newChunk(w.chunkShader, w.atlas, pos)
+	chunk := newChunk(w.chunkShader, w.chunkShadowMapShader, w.atlas, pos)
 	w.chunks.Set(pos, chunk)
 	s := w.generator.Terrain(chunk.pos)
 	chunk.Init(s)
@@ -214,14 +215,17 @@ func (w *World) SpawnRadius(center mgl32.Vec3) {
 
 // Returns the nearby chunks.
 // Despaws chunks that are far away.
-func (w *World) NearChunks(p mgl32.Vec3) []*Chunk {
+// Applies a cull function and doesnt return the chunk if it is culled.
+func (w *World) CollectChunks(p mgl32.Vec3, cull func(c *Chunk) bool) []*Chunk {
 	o := make([]*Chunk, 0)
 	for _, c := range w.chunks.All() {
 		chunkCenter := c.pos.Add(mgl32.Vec3{chunkWidth / 2, chunkHeight / 2, chunkWidth / 2})
 		diff := p.Sub(chunkCenter)
 		diffl := diff.Len()
 		if diffl <= visibleRadius {
-			o = append(o, c)
+			if cull == nil || !cull(c) {
+				o = append(o, c)
+			}
 		} else if diffl > destroyRadius {
 			w.DespawnChunk(c)
 		}

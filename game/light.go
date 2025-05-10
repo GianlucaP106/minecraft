@@ -8,21 +8,39 @@ import (
 	"github.com/go-gl/mathgl/mgl32"
 )
 
-// TODO: shadow mapping
-
 // Maintains the light position and level.
 type Light struct {
 	time      *time.Ticker
 	ascending bool
 	pos       mgl32.Vec3
+	view      mgl32.Vec3
 	level     float32
 }
 
-func newLight() *Light {
+const maxLightViewHeight = 100
+
+func newLight(initialPos mgl32.Vec3) *Light {
 	l := &Light{}
-	l.pos = mgl32.Vec3{0, 200, 0}
+	l.pos = initialPos
 	l.level = 0.4
 	return l
+}
+
+// Moves the light to ensure the passed position is lit properly in the world.
+func (l *Light) Move(p mgl32.Vec3) {
+	lightPos := p.Sub(mgl32.Vec3{1, 0, 1}.Normalize().Mul(visibleRadius))
+	lightPos[1] = 200
+	l.pos = lightPos
+
+	// ensure light is looking at most at constant height
+	p[1] = min(maxLightViewHeight, p.Y())
+	l.view = p.Sub(lightPos).Normalize()
+}
+
+func (l *Light) Mat() mgl32.Mat4 {
+	proj := mgl32.Ortho(-40, 40, -40, 40, 1, 250)
+	view := mgl32.LookAtV(l.pos, l.pos.Add(l.view), mgl32.Vec3{0, 1, 0})
+	return proj.Mul4(view)
 }
 
 // Starts a timer to change the the light level at each interval.

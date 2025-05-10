@@ -13,44 +13,50 @@ import (
 
 // Main game.
 type Game struct {
-	// wraps over glfw
-	window *Window
-
-	// manages shader programs
-	shaders *ShaderManager
-
-	// manages texture assets
-	textures *TextureManager
-
-	// database on filesystem (sqlite)
-	db *Database
-
-	// main player
-	player *Player
-
-	// light source
-	light *Light
-
-	// manages terrain, chunks and blocks
-	world *World
-
-	// block the player is currently looking at
-	target *TargetBlock
+	// provides time delta for game loop
+	clock *Clock
 
 	// crosshair shows a cross on the screen
 	crosshair *Crosshair
 
+	// database on filesystem (sqlite)
+	db *Database
+
+	// depth from light perspective for shadow lighting
+	depthMap *DepthMap
+
+	// last time world details was saved (not blocks as they are currently greedily saved)
+	lastSaved time.Time
+
+	// light source
+	light *Light
+
 	// hotbar displays inventory bar
 	hotbar *Hotbar
-
-	// provides time delta for game loop
-	clock *Clock
 
 	// physics engine for player movements and collisions
 	physics *PhysicsEngine
 
-	// last time world details was saved (not blocks as they are currently greedily saved)
-	lastSaved time.Time
+	// main player
+	player *Player
+
+	// manages shader programs
+	shaders *ShaderManager
+
+	// block the player is currently looking at
+	target *TargetBlock
+
+	// to display textures on a quad on screen corner
+	textureDebug *TextureDebugger
+
+	// manages texture assets
+	textures *TextureManager
+
+	// wraps over glfw
+	window *Window
+
+	// manages terrain, chunks and blocks
+	world *World
 }
 
 const (
@@ -81,17 +87,12 @@ func (g *Game) Init() {
 	g.window = newWindow()
 
 	gl.Enable(gl.DEPTH_TEST)
-	g.light = newLight()
-	g.light.SetLevel(1.0)
-
-	// day and night (uncomment to togggle along with `HandleChange()` in the game loop)
-	// g.light.StartDay(time.Second * 10)
 
 	g.shaders = newShaderManager("./shaders")
 	g.textures = newTextureManager("./assets")
 	atlas := newTextureAtlas(g.textures.CreateTexture("atlas.png"))
 
-	g.world = newWorld(g.shaders.Program("chunk"), atlas, worldEntity.id, g.db)
+	g.world = newWorld(g.shaders.Program("chunk"), g.shaders.Program("chunk_shadow_map"), atlas, worldEntity.id, g.db)
 	g.world.Init()
 	g.clock = newClock()
 
@@ -104,6 +105,12 @@ func (g *Game) Init() {
 	g.physics.Register(g.player.body)
 	g.player.inventory.Set(worldEntity.Inventory())
 
+	g.light = newLight(mgl32.Vec3{})
+	g.light.SetLevel(1.0)
+
+	// day and night (uncomment to togggle along with `HandleChange()` in the game loop)
+	// g.light.StartDay(time.Second * 10)
+
 	g.SetLookHandler()
 	g.SetMouseClickHandler()
 
@@ -112,8 +119,14 @@ func (g *Game) Init() {
 
 	g.hotbar = newHotbar(g.shaders.Program("hotbar"), atlas, g.player.camera)
 	g.hotbar.AddAll(worldEntity.Inventory())
-
 	g.hotbar.Init()
+
+	// texture debugger on top right of screen (UNCOMMENT TO TOGGLE, along with draw call in game loop)
+	// g.textureDebug = newTextureDebugger(g.shaders.Program("texture_debug"))
+	// g.textureDebug.Init()
+
+	g.depthMap = newDepthMap()
+	g.depthMap.Init()
 }
 
 // Runs the game loop.
@@ -126,11 +139,10 @@ func (g *Game) Run() {
 		log.Println(http.ListenAndServe(":6060", nil))
 	}()
 
+	// scrWidth, scrHeight := glfw.GetCurrentContext().GetFramebufferSize()
+
 	g.clock.Start()
 	for !g.window.ShouldClose() && !g.window.IsPressed(glfw.KeyQ) {
-		// clear buffers
-		gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
-
 		// movement
 		g.HandleMove()
 		g.HandleJump()
@@ -144,37 +156,51 @@ func (g *Game) Run() {
 		g.world.SpawnSurroundings(g.player.body.position)
 		g.world.ProcessSpawnQueue()
 
-		// day/night (uncomment to toggle)
+		// day/night (UNCOMMENT TO TOGGLE)
 		// g.light.HandleChange()
 
-		delta := g.clock.Tick()
+		// tick physics simulation
 		g.physics.SetColliders(g.world.SurroundingBoxes(g.player.body.position))
-		g.physics.Tick(delta)
+		g.physics.Tick(g.clock.Tick())
 
-		// drawing
+		lightPos := g.player.camera.pos.Sub(mgl32.Vec3{1, 0, 1}.Normalize().Mul(visibleRadius))
+		lightPos[1] = 200
+		g.light.pos = lightPos
+		g.light.view = g.player.camera.pos.Sub(lightPos).Normalize()
+
+		// get nearby chunks, despawn far chunk and cull non visible chunks
+		near := g.world.CollectChunks(g.player.body.position, func(c *Chunk) bool {
+			return !g.player.Sees(c)
+		})
+
+		// depth pass - render depth to a texture for shadow mapping
+		g.depthMap.Prepare()
+		gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
+		for _, c := range near {
+			c.DrawDepthMap(g.light)
+		}
+		g.depthMap.Restore()
+
+		// rendering
+		gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
 		g.crosshair.Draw()
 		g.hotbar.Draw()
 
-		// for _, c := range g.world.SpawnSurroundings(g.player.body.position) {
-		for _, c := range g.world.NearChunks(g.player.body.position) {
-			// cull chunks that are not in view
-			if !g.player.Sees(c) {
-				continue
-			}
+		// show depth map as seen from the light perspective at top right of screen (UNCOMMENT TO TOGGLE)
+		// g.textureDebug.Draw(g.depthMap.texture)
 
+		for _, c := range near {
 			// if a block is being looked at in this chunk
 			var target *TargetBlock
 			if g.target != nil && g.target.block.chunk == c {
 				target = g.target
 			}
 
-			c.Draw(target, g.player.camera, g.light)
+			c.Draw(target, g.player.camera, g.light, g.depthMap)
 		}
 
-		// persistence
-		if time.Since(g.lastSaved) >= worldSaveInterval {
-			g.SavePosition()
-		}
+		// position persistence
+		g.SavePosition()
 
 		// window maintenance
 		g.window.SwapBuffers()
@@ -322,10 +348,12 @@ func (g *Game) SaveInventory() {
 
 // Saves world player position.
 func (g *Game) SavePosition() {
-	pos := g.player.camera.pos
-	log.Println("Saving player position", pos)
-	g.db.UpdatePosition(g.world.id, pos.X(), pos.Y(), pos.Z())
-	g.lastSaved = time.Now()
+	if time.Since(g.lastSaved) >= worldSaveInterval {
+		pos := g.player.camera.pos
+		log.Println("Saving player position", pos)
+		g.db.UpdatePosition(g.world.id, pos.X(), pos.Y(), pos.Z())
+		g.lastSaved = time.Now()
+	}
 }
 
 // Handles flying movement by player.
@@ -352,6 +380,7 @@ func (g *Game) HandleMove() {
 	// get input for movement
 	var rightMove float32
 	var forwardMove float32
+	var fly bool
 
 	if g.window.IsPressed(glfw.KeyA) {
 		rightMove--
@@ -365,9 +394,12 @@ func (g *Game) HandleMove() {
 	if g.window.IsPressed(glfw.KeyS) {
 		forwardMove--
 	}
+	if g.window.IsPressed(glfw.KeySpace) {
+		fly = true
+	}
 
 	// input movement direction
-	g.player.Move(forwardMove, rightMove)
+	g.player.Move(forwardMove, rightMove, fly)
 }
 
 // Sets a key callback function to handle mouse movement.

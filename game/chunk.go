@@ -11,8 +11,8 @@ type Chunk struct {
 	id int
 
 	// resources
-	atlas  *TextureAtlas
-	shader *Shader
+	atlas                   *TextureAtlas
+	shader, shadowMapShader *Shader
 
 	// blocks in the chunk, position determined by index in array
 	blocks [chunkWidth][chunkHeight][chunkWidth]*Block
@@ -24,7 +24,8 @@ type Chunk struct {
 	pos mgl32.Vec3
 
 	// gpu buffers
-	vao, vbo uint32
+	vao, vbo             uint32
+	shadowVao, shadowVbo uint32
 }
 
 func newBlockTypes() BlockTypes {
@@ -37,10 +38,11 @@ const (
 	chunkHeight = 256
 )
 
-func newChunk(shader *Shader, atlas *TextureAtlas, pos mgl32.Vec3) *Chunk {
+func newChunk(shader, shadowMapShader *Shader, atlas *TextureAtlas, pos mgl32.Vec3) *Chunk {
 	c := &Chunk{}
 	c.id = -1
 	c.shader = shader
+	c.shadowMapShader = shadowMapShader
 	c.pos = pos
 	c.atlas = atlas
 	return c
@@ -90,6 +92,18 @@ func (c *Chunk) Init(types BlockTypes) {
 
 	textureUniform := gl.GetUniformLocation(c.shader.handle, gl.Str("tex\x00"))
 	gl.Uniform1i(textureUniform, 0)
+
+	shadowMapUniform := gl.GetUniformLocation(c.shader.handle, gl.Str("shadowMap\x00"))
+	gl.Uniform1i(shadowMapUniform, 1)
+
+	// shadow map pass
+	gl.GenVertexArrays(1, &c.shadowVao)
+	gl.BindVertexArray(c.shadowVao)
+	gl.GenBuffers(1, &c.shadowVbo)
+	gl.BindBuffer(gl.ARRAY_BUFFER, c.shadowVbo)
+	vertAttribShadow := uint32(gl.GetAttribLocation(c.shadowMapShader.handle, gl.Str("vert\x00")))
+	gl.EnableVertexAttribArray(vertAttribShadow)
+	gl.VertexAttribPointerWithOffset(vertAttribShadow, 3, gl.FLOAT, false, 3*4, 0)
 }
 
 // Deletes buffers from gpu.
@@ -98,18 +112,21 @@ func (c *Chunk) Destroy() {
 	c.vbo = 0
 	gl.DeleteVertexArrays(1, &c.vao)
 	c.vao = 0
+
+	gl.DeleteBuffers(1, &c.shadowVbo)
+	c.shadowVbo = 0
+	gl.DeleteVertexArrays(1, &c.shadowVao)
+	c.shadowVao = 0
 }
 
 // Sends the chunks vertices to GPU.
 func (c *Chunk) Buffer() {
-	// bind to the vbo
-	gl.BindBuffer(gl.ARRAY_BUFFER, c.vbo)
-
 	// reset vertCount
 	c.vertCount = 0
 
 	// start building chunk
 	chunk := make([]float32, 0)
+	chunkDepth := make([]float32, 0)
 	for i, layer := range c.blocks {
 		for j, row := range layer {
 			for k, block := range row {
@@ -141,6 +158,7 @@ func (c *Chunk) Buffer() {
 				for _, vert := range block.Vertices(excludeFaces) {
 					c.vertCount++
 					pos := translate.Mul4x1(vert.pos.Vec4(1))
+
 					chunk = append(chunk,
 						// pos
 						pos.X(), pos.Y(), pos.Z(),
@@ -151,6 +169,11 @@ func (c *Chunk) Buffer() {
 						// texture
 						vert.tex.X(), vert.tex.Y(),
 					)
+
+					chunkDepth = append(chunkDepth,
+						// only position
+						pos.X(), pos.Y(), pos.Z(),
+					)
 				}
 			}
 		}
@@ -158,13 +181,33 @@ func (c *Chunk) Buffer() {
 
 	// send vertices to gpu
 	if len(chunk) > 0 {
+		gl.BindBuffer(gl.ARRAY_BUFFER, c.vbo)
 		gl.BufferData(gl.ARRAY_BUFFER, len(chunk)*4, gl.Ptr(chunk), gl.DYNAMIC_DRAW)
+
+		gl.BindBuffer(gl.ARRAY_BUFFER, c.shadowVbo)
+		gl.BufferData(gl.ARRAY_BUFFER, len(chunkDepth)*4, gl.Ptr(chunkDepth), gl.DYNAMIC_DRAW)
 	}
+}
+
+// Draws the chunk with vertices for the depth map.
+func (c *Chunk) DrawDepthMap(light *Light) {
+	gl.UseProgram(c.shadowMapShader.handle)
+	gl.BindVertexArray(c.shadowVao)
+
+	model := mgl32.Translate3D(c.pos.X(), c.pos.Y(), c.pos.Z())
+	modelUniform := gl.GetUniformLocation(c.shadowMapShader.handle, gl.Str("model\x00"))
+	gl.UniformMatrix4fv(modelUniform, 1, false, &model[0])
+
+	lightMat := light.Mat()
+	lightMatUniform := gl.GetUniformLocation(c.shadowMapShader.handle, gl.Str("lightSpaceMatrix\x00"))
+	gl.UniformMatrix4fv(lightMatUniform, 1, false, &lightMat[0])
+
+	gl.DrawArrays(gl.TRIANGLES, 0, int32(c.vertCount))
 }
 
 // Draws the chunk from the perspective of the provided camera.
 // Sets the "lookedAtBlock" to be the provided target block.
-func (c *Chunk) Draw(target *TargetBlock, camera *Camera, light *Light) {
+func (c *Chunk) Draw(target *TargetBlock, camera *Camera, light *Light, depthMap *DepthMap) {
 	gl.UseProgram(c.shader.handle)
 	gl.BindVertexArray(c.vao)
 
@@ -175,7 +218,7 @@ func (c *Chunk) Draw(target *TargetBlock, camera *Camera, light *Light) {
 	modelUniform := gl.GetUniformLocation(c.shader.handle, gl.Str("model\x00"))
 	gl.UniformMatrix4fv(modelUniform, 1, false, &model[0])
 
-	// attach view matrix to uniform
+	// attach view + projection matrix to uniform
 	viewUniform := gl.GetUniformLocation(c.shader.handle, gl.Str("view\x00"))
 	view := camera.Mat()
 	gl.UniformMatrix4fv(viewUniform, 1, false, &view[0])
@@ -205,8 +248,15 @@ func (c *Chunk) Draw(target *TargetBlock, camera *Camera, light *Light) {
 	isLookingUniform := gl.GetUniformLocation(c.shader.handle, gl.Str("isLooking\x00"))
 	gl.Uniform1i(isLookingUniform, int32(isLooking))
 
+	lightMat := light.Mat()
+	lightMatUniform := gl.GetUniformLocation(c.shader.handle, gl.Str("lightSpaceMatrix\x00"))
+	gl.UniformMatrix4fv(lightMatUniform, 1, false, &lightMat[0])
+
 	gl.ActiveTexture(gl.TEXTURE0)
 	gl.BindTexture(gl.TEXTURE_2D, c.atlas.texture.handle)
+
+	gl.ActiveTexture(gl.TEXTURE1)
+	gl.BindTexture(gl.TEXTURE_2D, depthMap.texture)
 
 	// final draw call for chunk
 	gl.DrawArrays(gl.TRIANGLES, 0, int32(c.vertCount))

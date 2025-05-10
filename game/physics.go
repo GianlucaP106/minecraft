@@ -153,10 +153,14 @@ type RigidBody struct {
 }
 
 // Converts movement vector into a velocity change (not force for now).
-func (r *RigidBody) Move(movement mgl32.Vec3) {
+func (r *RigidBody) Move(movement mgl32.Vec3, fly bool) {
 	var yComponent float32
 	if r.flying {
-		yComponent = movement.Y()
+		if fly {
+			yComponent = 5
+		} else {
+			yComponent = 0
+		}
 	} else {
 		yComponent = r.velocity.Y()
 	}
