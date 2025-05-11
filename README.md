@@ -2,28 +2,21 @@
 
 A Minecraft clone from scratch with only modern OpenGL. No game engines or frameworks.
 
-<img width="1000" alt="demo2" src="https://github.com/user-attachments/assets/610d1f34-cd6f-4e84-89de-86ddf327fe48" />
+<img width="1612" alt="Screenshot 2025-05-11 at 12 48 01 AM" src="https://github.com/user-attachments/assets/66099f92-0b91-4eb3-bb00-945efd5f456f" />
 
 <table>
   <tr>
-    <td><img width="800" alt="demo1" src="https://github.com/user-attachments/assets/4a6416e1-7aff-4b0e-a95d-a32f59e6379b" /></td>
-    <td><img width="800" alt="Screenshot 2025-05-06 at 10 01 25 PM" src="https://github.com/user-attachments/assets/382b472a-4c17-4bf1-b3bf-0a7c9013a9f7" /></td>
-  </tr>
-  <tr>
-    <td><img width="800" alt="Screenshot 2025-05-06 at 9 28 36 PM" src="https://github.com/user-attachments/assets/6b0d54e2-573c-40f7-95e4-35c85bec5faa" /></td>
     <td><img width="800" alt="Screenshot 2025-05-10 at 12 04 36 PM" src="https://github.com/user-attachments/assets/deaf40ca-8032-434d-bf84-c4806e01f8e0" /></td>
+    <td><img width="800" alt="Screenshot 2025-05-06 at 10 01 25 PM" src="https://github.com/user-attachments/assets/382b472a-4c17-4bf1-b3bf-0a7c9013a9f7" /></td>
   </tr>
   <tr>
     <td><img width="800" alt="demo5" src="https://github.com/user-attachments/assets/848e97e3-5d9e-4cb3-9345-2478ca84424a" /></td>
     <td><img width="800" alt="demo7" src="https://github.com/user-attachments/assets/c617738b-34a6-4099-9012-e2541b2d108a" /></td>
   </tr>
-  <tr>
-    <td><img width="800" alt="demo8" src="https://github.com/user-attachments/assets/d23c26e5-695e-4b16-aad8-5b65d1bca40c" /></td>
-    <td><img width="800" alt="demo3" src="https://github.com/user-attachments/assets/6e207385-911e-4831-80bb-cb315d3b3c48" /></td>
-  </tr>
 </table>
 
-<https://github.com/user-attachments/assets/206225e1-12f3-42da-ae13-1566fba06f21>
+
+https://github.com/user-attachments/assets/ba68da39-bf90-4e17-b6ad-3e84fae37e23
 
 ## Features
 
