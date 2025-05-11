@@ -97,11 +97,20 @@ func (p *PhysicsEngine) update(body *RigidBody, delta float64) {
 
 	// resolve collisions along the XZ directions
 	for _, collider := range p.colliders {
-		// if this is a ground of ceiling collider
+		// if this is a ground or ceiling collider
 		if collider.center.X() == worldPosition.X() && collider.center.Z() == worldPosition.Z() {
-			b, depth := collider.Intersection(body.collider, 1)
-			if b {
-				groundedDepth = &depth
+			// ground
+			if collider.center.Y() < worldPosition.Y() {
+				b, depth := collider.Intersection(body.collider, 1)
+				if b {
+					groundedDepth = &depth
+				}
+			} else { // ceiling
+				b, pen := collider.Intersection(body.collider, 1)
+				if b {
+					body.velocity[1] = 0
+					body.setPosition(body.position.Sub(mgl32.Vec3{0, pen, 0}))
+				}
 			}
 		} else { // if this is a wall collider
 			b, pen := body.collider.IntersectionXZ(collider)
@@ -114,7 +123,8 @@ func (p *PhysicsEngine) update(body *RigidBody, delta float64) {
 	// resolve collisions along the Y direction
 	if groundedDepth != nil {
 		body.grounded = true
-		body.position = body.position.Add(mgl32.Vec3{0, *groundedDepth, 0})
+		body.velocity[1] = 0
+		body.setPosition(body.position.Add(mgl32.Vec3{0, *groundedDepth, 0}))
 	} else {
 		body.grounded = false
 	}
@@ -176,8 +186,8 @@ func (r *RigidBody) Jump() {
 // Sets position and sets a new collider.
 func (r *RigidBody) setPosition(p mgl32.Vec3) {
 	r.position = p
-	r.collider = Box{
-		min: r.position.Sub(mgl32.Vec3{r.width / 2, r.height, r.width / 2}),
-		max: r.position.Add(mgl32.Vec3{r.width / 2, 0, r.width / 2}),
-	}
+	r.collider = newBox(
+		r.position.Sub(mgl32.Vec3{r.width / 2, r.height, r.width / 2}),
+		r.position.Add(mgl32.Vec3{r.width / 2, 0, r.width / 2}),
+	)
 }

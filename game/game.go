@@ -365,12 +365,6 @@ func (g *Game) HanldleFly() {
 
 // Handles jump from pressed keys.
 func (g *Game) HandleJump() {
-	// TODO: handle ceiling in a better way (see physics.go)
-	ceiling := g.world.Block(g.player.body.position.Add(mgl32.Vec3{0, 0.5, 0}))
-	if ceiling != nil && ceiling.active {
-		return
-	}
-
 	if g.window.Debounce(glfw.KeySpace) && g.player.body.grounded {
 		g.player.body.Jump()
 	}

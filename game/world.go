@@ -150,24 +150,29 @@ func (w *World) Ground(x, z float32) *Block {
 
 // Returns the nearby blocks from a postion (i.e the walls, floor and cieling).
 func (w *World) SurroundingBoxes(p mgl32.Vec3) []Box {
-	blocks := make([]*Block, 0)
+	relativePositions := []mgl32.Vec3{
+		{1, 0, 0},
+		{-1, 0, 0},
+		{0, 0, 1},
+		{0, 0, -1},
+
+		{1, -1, 0},
+		{-1, -1, 0},
+		{0, -1, 1},
+		{0, -1, -1},
+
+		{0, -2, 0},
+		{0, 1, 0},
+	}
+
 	currentBlock := w.Block(p)
 	curPos := currentBlock.WorldPos()
-	blocks = append(blocks,
-		w.Block(curPos.Add(mgl32.Vec3{1, 0, 0})),
-		w.Block(curPos.Add(mgl32.Vec3{-1, 0, 0})),
-		w.Block(curPos.Add(mgl32.Vec3{0, 0, 1})),
-		w.Block(curPos.Add(mgl32.Vec3{0, 0, -1})),
+	blocks := make([]*Block, len(relativePositions))
+	for i, v := range relativePositions {
+		blocks[i] = w.Block(curPos.Add(v))
+	}
 
-		w.Block(curPos.Add(mgl32.Vec3{1, -1, 0})),
-		w.Block(curPos.Add(mgl32.Vec3{-1, -1, 0})),
-		w.Block(curPos.Add(mgl32.Vec3{0, -1, 1})),
-		w.Block(curPos.Add(mgl32.Vec3{0, -1, -1})),
-
-		w.Block(curPos.Add(mgl32.Vec3{0, -2, 0})),
-	)
-
-	boxes := make([]Box, 0)
+	boxes := []Box{}
 	for _, b := range blocks {
 		if b.active {
 			boxes = append(boxes, b.Box())
