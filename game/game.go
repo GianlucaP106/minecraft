@@ -139,34 +139,39 @@ func (g *Game) Run() {
 		log.Println(http.ListenAndServe(":6060", nil))
 	}()
 
-	// scrWidth, scrHeight := glfw.GetCurrentContext().GetFramebufferSize()
-
 	g.clock.Start()
 	for !g.window.ShouldClose() && !g.window.IsPressed(glfw.KeyQ) {
-		// movement
-		g.HandleMove()
-		g.HandleJump()
-		g.HanldleFly()
+		g.clock.Tick()
 
-		// interactions
-		g.LookBlock()
-		g.HandleInventorySelect()
+		// simulation loop - get input and simulate world but dont render
+		for g.clock.ShouldSimulate() {
+			// movement
+			g.HandleMove()
+			g.HandleJump()
+			g.HanldleFly()
 
-		// world
-		g.world.SpawnSurroundings(g.player.body.position)
-		g.world.ProcessSpawnQueue()
+			// interactions
+			g.LookBlock()
+			g.HandleInventorySelect()
 
-		// day/night (UNCOMMENT TO TOGGLE)
-		// g.light.HandleChange()
+			// world
+			g.world.SpawnSurroundings(g.player.body.position)
+			g.world.ProcessSpawnQueue()
 
-		// tick physics simulation
-		g.physics.SetColliders(g.world.SurroundingBoxes(g.player.body.position))
-		g.physics.Tick(g.clock.Tick())
+			// day/night (UNCOMMENT TO TOGGLE)
+			// g.light.HandleChange()
 
-		lightPos := g.player.camera.pos.Sub(mgl32.Vec3{1, 0, 1}.Normalize().Mul(visibleRadius))
-		lightPos[1] = 200
-		g.light.pos = lightPos
-		g.light.view = g.player.camera.pos.Sub(lightPos).Normalize()
+			// tick physics simulation
+			g.physics.SetColliders(g.world.SurroundingBoxes(g.player.body.position))
+			g.physics.Tick(g.clock.SimulationDelta())
+
+			lightPos := g.player.camera.pos.Sub(mgl32.Vec3{1, 0, 1}.Normalize().Mul(visibleRadius))
+			lightPos[1] = 200
+			g.light.pos = lightPos
+			g.light.view = g.player.camera.pos.Sub(lightPos).Normalize()
+
+			g.clock.ConsumeStep()
+		}
 
 		// get nearby chunks, despawn far chunk and cull non visible chunks
 		near := g.world.CollectChunks(g.player.body.position, func(c *Chunk) bool {
