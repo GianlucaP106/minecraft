@@ -22,7 +22,7 @@ A Minecraft clone from scratch with only OpenGL. No game engines or frameworks.
 - 🌍 Infinite & procedurally generated terrain using Perlin noise
 - ⚙️ Physics engine with collision detection and response
 - 💡 Dynamic lighting with shadows and day/night cycle 🌞🌙
-- 🧱 Block placement and destruction (just like the original!)
+- 🧱 Block placement and destruction
 - 🌳 Tree generation & basic cave systems 🕳️
 - 📦 Dynamic chunk loading/unloading based on player position
 - 🎯 Frustum culling for rendering optimization
