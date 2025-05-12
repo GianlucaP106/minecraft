@@ -105,3 +105,10 @@ This project uses ONLY the following Go packages:
 - [`go-gl/glfw`](https://pkg.go.dev/github.com/go-gl/glfw/v3.3/glfw)
 - [`go-gl/mathgl`](https://pkg.go.dev/github.com/go-gl/mathgl/mgl32)
 - [`mattn/go-sqlite3`](https://pkg.go.dev/github.com/mattn/go-sqlite3)
+  
+---
+
+## ⚠️ Disclaimer
+
+This project is developed for **educational and non-commercial purposes only**.  
+It is **not affiliated with or endorsed by Mojang, Microsoft, or any related entities**.  
