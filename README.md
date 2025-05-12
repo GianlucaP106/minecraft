@@ -1,4 +1,4 @@
-# Minecraft from scratch
+# Minecraft from scratch ![minecraft](https://github.com/user-attachments/assets/b3f022b3-17d2-49c8-a4ad-be2d3433ef17) 
 
 A Minecraft clone from scratch with only OpenGL. No game engines or frameworks.
 
