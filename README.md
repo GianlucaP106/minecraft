@@ -17,76 +17,91 @@ A Minecraft clone from scratch with only OpenGL. No game engines or frameworks.
   </tr>
 </table>
 
-## Features
+## ✨ Features
 
-- Infinite and procedurally generated terrain using Perlin noise
-- Physics engine with collision detection
-- Dynamic lighting with shadows
-- Block placement and destruction
-- Tree generation
-- Basic cave systems
-- Dynamic chunk loading/unloading based on player position
-- Simple culling techniques for rendering optimization
-- Simple inventory system
-- Flying mode
-- Day/night cycle
+- 🌍 Infinite & procedurally generated terrain using Perlin noise
+- ⚙️ Physics engine with collision detection and response
+- 💡 Dynamic lighting with shadows and day/night cycle 🌞🌙
+- 🧱 Block placement and destruction (just like the original!)
+- 🌳 Tree generation & basic cave systems 🕳️
+- 📦 Dynamic chunk loading/unloading based on player position
+- 🎯 Frustum culling for rendering optimization
+- 🎒 Simple inventory system with hotbar (1–9)
+- 🕹️ Flying mode for creative exploration
+- 🗺️ Biome-based terrain variation
 
-## Installation
+---
+
+## 🛠️ Installation
 
 ```bash
-# clone
+# Clone the repository
 git clone https://github.com/GianlucaP106/minecraft minecraft && cd minecraft
 
-# run game (requires go)
+# Run the game (requires Go)
 go run .
-```
+````
 
-## Controls
+📦 *Make sure you have Go installed: [https://go.dev/dl/](https://go.dev/dl/)*
 
-- WASD - Movement
-- Space - Jump
-- F - Toggle flying mode
-- Mouse - Look around
-- Left Click - Break block
-- Right Click - Place block
-- 1-9 - Select inventory slot
+---
 
-## Technical Highlights
+## 🎮 Controls
 
-### Graphics
+| Action      | Key/Mouse          |
+| ----------- | ------------------ |
+| Move        | `W`, `A`, `S`, `D` |
+| Jump        | `Space`            |
+| Toggle Fly  | `F`                |
+| Look Around | `Mouse`            |
+| Break Block | `Left Click`       |
+| Place Block | `Right Click`      |
+| Select Item | `1-9`              |
 
-- Written in OpenGL 4.1
-- Custom shader programs for blocks, UI elements, and effects
-- View frustum culling for performance optimization
+---
 
-### World Generation
+## 🧪 Technical Highlights
 
-- Multi-octave Perlin noise for terrain generation
-- Biome system affecting terrain height and features
-- Procedural cave system generation
-- Dynamic tree placement based on biome
+### 🖼️ Graphics
 
-### Physics
+- Uses **OpenGL 4.1**
+- Custom **shader programs** for blocks, UI, and lighting
+- **Frustum culling** for performance optimization
 
-- Custom physics engine
-- Rigid body dynamics
-- Custom collision detection and response
-- Jump mechanics
+### 🌄 World Generation
 
-## Architecture
+- Multi-octave **Perlin noise** for terrain shaping
+- Biome system to vary landscape types
+- **Procedural caves** and tree generation
+- Real-time chunk loading/unloading
+
+### ⚙️ Physics
+
+- Custom physics engine with **rigid body dynamics**
+- Block-based **collision detection**
+- Jumping & flying mechanics
+
+---
+
+## 🧩 Architecture Overview
 
 ![architecture](https://github.com/user-attachments/assets/9945151b-daf4-4918-b670-24881ceb35a4)
 
-The game is built with a component-based architecture, with key systems including:
+The engine follows a **component-based** design. Key systems include:
 
-- World: (chunk loading, block updates)
-- World Generator: (noise, terrain, tree, biome)
-- Physics engine and Rigid Body (collision, movement)
-- Player, Camera and Ray
-- Chunk and Block
-  
-## Dependencies
+- 🎮 Game: Core game loop and simulation
+- 🌍 World system: Chunk loading, block updates
+- 🧬 Generator: Terrain, trees, caves, biomes
+- ⚙️ Physics engine: Collision, movement, response
+- 🧑 Player: Camera, controls, raycasting
 
-- github.com/go-gl/gl/v4.1-core/gl
-- github.com/go-gl/glfw/v3.3/glfw
-- github.com/go-gl/mathgl/mgl32
+---
+
+## 📦 Dependencies
+
+This project uses ONLY the following Go packages:
+
+- [`go-gl/gl`](https://pkg.go.dev/github.com/go-gl/gl/v4.1-core/gl)
+- [`go-gl/glfw`](https://pkg.go.dev/github.com/go-gl/glfw/v3.3/glfw)
+- [`go-gl/mathgl`](https://pkg.go.dev/github.com/go-gl/mathgl/mgl32)
+- [`mattn/go-sqlite3`](https://pkg.go.dev/github.com/mattn/go-sqlite3)
