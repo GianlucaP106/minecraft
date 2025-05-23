@@ -55,13 +55,13 @@ func (b Box) Distance(pos mgl32.Vec3) float32 {
 }
 
 // Returns true of the boxes intersect along the X or Z axis.
-func (b Box) IntersectionXZ(b2 Box) (bool, mgl32.Vec3) {
+func (b Box) IntersectionXZ(b2 Box) (bool, mgl32.Vec3, Direction) {
 	if !(b.min.X() <= b2.max.X() &&
 		b.max.X() >= b2.min.X() &&
 		b.min.Z() <= b2.max.Z() &&
 		b.max.Z() >= b2.min.Z()) {
 
-		return false, mgl32.Vec3{}
+		return false, mgl32.Vec3{}, noDirection
 	}
 
 	overlapX1 := b.max.X() - b2.min.X()
@@ -73,15 +73,18 @@ func (b Box) IntersectionXZ(b2 Box) (bool, mgl32.Vec3) {
 	depthZ := min(overlapZ1, overlapZ2)
 
 	var penetration mgl32.Vec3
+	direction := noDirection
 	if depthX < depthZ {
 		penetrationX := depthX * sign(overlapX2-overlapX1)
 		penetration = mgl32.Vec3{penetrationX, 0, 0}
+		direction = newDirection(mgl32.Vec3{-1 * sign(penetrationX), 0, 0})
 	} else {
 		penetrationZ := depthZ * sign(overlapZ2-overlapZ1)
 		penetration = mgl32.Vec3{0, 0, penetrationZ}
+		direction = newDirection(mgl32.Vec3{0, 0, -1 * sign(penetrationZ)})
 	}
 
-	return true, penetration
+	return true, penetration, direction
 }
 
 // Returns the the intersection along the given axis.

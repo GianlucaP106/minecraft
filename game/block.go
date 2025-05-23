@@ -27,10 +27,9 @@ type TargetBlock struct {
 	face Direction
 }
 
-// Holds information for 1 vertex with texture coordinates.
-type TexturedVertex struct {
-	tex  mgl32.Vec2
-	pos  mgl32.Vec3
+// Wrapper over Vertex that holds the face and normal vector associated with the block face.
+type BlockVertex struct {
+	Vertex
 	norm mgl32.Vec3
 	face Direction
 }
@@ -78,75 +77,27 @@ func (b *Block) Box() Box {
 	return newBox(min, max)
 }
 
-// Returns vertices for a block with textures.
-func (b *Block) Vertices(excludeFaces [6]bool) []TexturedVertex {
-	type vert struct {
-		pos mgl32.Vec3
-		tex mgl32.Vec2
-	}
-
+// Returns vertices for a block with texture and normal vector.
+func (b *Block) Vertices(excludeFaces [6]bool) []BlockVertex {
 	texs := blocks[b.blockType]
-	getQuadVertices := func(direction Direction) [6]vert {
-		tex := texs[direction]
-		umin, umax, vmin, vmax := b.chunk.atlas.Coords(tex[0], tex[1])
-		// base quad in the XY plane, centered at the origin
-		quad := [6]vert{
-			{mgl32.Vec3{-1.0, -1.0, 0.0}, mgl32.Vec2{umin, vmax}}, // Bottom-left
-			{mgl32.Vec3{1.0, -1.0, 0.0}, mgl32.Vec2{umax, vmax}},  // Bottom-right
-			{mgl32.Vec3{-1.0, 1.0, 0.0}, mgl32.Vec2{umin, vmin}},  // Top-left
-			{mgl32.Vec3{1.0, -1.0, 0.0}, mgl32.Vec2{umax, vmax}},  // Bottom-right
-			{mgl32.Vec3{1.0, 1.0, 0.0}, mgl32.Vec2{umax, vmin}},   // Top-right
-			{mgl32.Vec3{-1.0, 1.0, 0.0}, mgl32.Vec2{umin, vmin}},  // Top-left
-		}
-
-		// transformation based on direction
-		switch direction {
-		case north: // -z
-			for i := range quad {
-				quad[i].pos = mgl32.Vec3{quad[i].pos[0], quad[i].pos[1], -1.0}
-			}
-		case south: // +z
-			for i := range quad {
-				quad[i].pos = mgl32.Vec3{quad[i].pos[0], quad[i].pos[1], 1.0}
-			}
-		case down: // -y
-			for i := range quad {
-				quad[i].pos = mgl32.Vec3{quad[i].pos[0], -1.0, quad[i].pos[1]}
-			}
-		case up: // +y
-			for i := range quad {
-				quad[i].pos = mgl32.Vec3{quad[i].pos[0], 1.0, quad[i].pos[1]}
-			}
-		case west: // -x
-			for i := range quad {
-				quad[i].pos = mgl32.Vec3{-1.0, quad[i].pos[1], quad[i].pos[0]}
-			}
-		case east: // +x
-			for i := range quad {
-				quad[i].pos = mgl32.Vec3{1.0, quad[i].pos[1], quad[i].pos[0]}
-			}
-		}
-
-		return quad
-	}
-
-	out := make([]TexturedVertex, 0)
+	out := make([]BlockVertex, 0)
 	for i := range directions {
 		if excludeFaces[i] {
 			continue
 		}
 
 		dir := Direction(i)
-		faceVertices := getQuadVertices(dir)
+		tex := texs[dir]
+		umin, umax, vmin, vmax := b.chunk.atlas.Coords(tex[0], tex[1])
+		quad := newQuad(umin, umax, vmin, vmax).TranlateDirection(dir)
 		norm := dir.Normal()
 
-		for _, face := range faceVertices {
-			out = append(out, TexturedVertex{
-				// blocks are size 2 at origin
-				pos:  face.pos.Mul(0.5),
-				norm: norm,
-				tex:  face.tex,
-				face: dir,
+		for _, fv := range quad {
+			fv.pos = fv.pos.Mul(0.5)
+			out = append(out, BlockVertex{
+				Vertex: fv,
+				norm:   norm,
+				face:   dir,
 			})
 		}
 	}

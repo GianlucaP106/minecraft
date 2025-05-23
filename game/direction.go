@@ -6,13 +6,13 @@ import "github.com/go-gl/mathgl/mgl32"
 type Direction uint
 
 const (
-	north Direction = iota // -z
-	south                  // +z
-	down                   // -y
-	up                     // +y
-	west                   // -x
-	east                   // +x
-	none                   // not calculated
+	north       Direction = iota // -z
+	south                        // +z
+	down                         // -y
+	up                           // +y
+	west                         // -x
+	east                         // +x
+	noDirection                  // not calculated
 )
 
 // Normal vectors for each direction (ordered like above)
@@ -44,11 +44,15 @@ func newDirection(p mgl32.Vec3) Direction {
 		}
 	}
 
-	return none
+	return noDirection
 }
 
 // Returns the normal for this direction.
 func (d Direction) Normal() mgl32.Vec3 {
+	if d == noDirection {
+		return mgl32.Vec3{}
+	}
+
 	new := directions[d]
 	return new
 }

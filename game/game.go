@@ -13,6 +13,9 @@ import (
 
 // Main game.
 type Game struct {
+	// texture atlas with all blocks
+	atlas *TextureAtlas
+
 	// provides time delta for game loop
 	clock *Clock
 
@@ -25,14 +28,14 @@ type Game struct {
 	// depth from light perspective for shadow lighting
 	depthMap *DepthMap
 
+	// hotbar displays inventory bar
+	hotbar *Hotbar
+
 	// last time world details was saved (not blocks as they are currently greedily saved)
 	lastSaved time.Time
 
 	// light source
 	light *Light
-
-	// hotbar displays inventory bar
-	hotbar *Hotbar
 
 	// physics engine for player movements and collisions
 	physics *PhysicsEngine
@@ -57,6 +60,8 @@ type Game struct {
 
 	// manages terrain, chunks and blocks
 	world *World
+
+	pearls []*Pearl
 }
 
 const (
@@ -90,13 +95,14 @@ func (g *Game) Init() {
 
 	g.shaders = newShaderManager("./shaders")
 	g.textures = newTextureManager("./assets")
-	atlas := newTextureAtlas(g.textures.CreateTexture("atlas.png"))
+	g.atlas = newTextureAtlas(g.textures.CreateTexture("atlas.png"))
 
-	g.world = newWorld(g.shaders.Program("chunk"), g.shaders.Program("chunk_shadow_map"), atlas, worldEntity.id, g.db)
+	g.world = newWorld(g.shaders.Program("chunk"), g.shaders.Program("depth"), g.atlas, worldEntity.id, g.db)
 	g.world.Init()
 	g.clock = newClock()
 
-	startPos := mgl32.Vec3{worldEntity.playerX, worldEntity.playerY + onStartPositionOffsetY, worldEntity.playerZ}
+	// startPos := mgl32.Vec3{worldEntity.playerX, worldEntity.playerY + onStartPositionOffsetY, worldEntity.playerZ}
+	startPos := mgl32.Vec3{worldEntity.playerX, worldEntity.playerY, worldEntity.playerZ}
 	log.Println("Spawning at", startPos)
 	g.player = newPlayer(startPos)
 	g.physics = newPhysicsEngine(func(v mgl32.Vec3) Box {
@@ -117,13 +123,13 @@ func (g *Game) Init() {
 	g.crosshair = newCrosshair(g.shaders.Program("crosshair"))
 	g.crosshair.Init()
 
-	g.hotbar = newHotbar(g.shaders.Program("hotbar"), atlas, g.player.camera)
+	g.hotbar = newHotbar(g.shaders.Program("hotbar"), g.atlas, g.player.camera)
 	g.hotbar.AddAll(worldEntity.Inventory())
 	g.hotbar.Init()
 
 	// texture debugger on top right of screen (UNCOMMENT TO TOGGLE, along with draw call in game loop)
-	// g.textureDebug = newTextureDebugger(g.shaders.Program("texture_debug"))
-	// g.textureDebug.Init()
+	g.textureDebug = newTextureDebugger(g.shaders.Program("debug"))
+	g.textureDebug.Init()
 
 	g.depthMap = newDepthMap()
 	g.depthMap.Init()
@@ -148,6 +154,7 @@ func (g *Game) Run() {
 			// movement
 			g.HandleMove()
 			g.HandleJump()
+			g.HandleThrowPearl()
 			g.HanldleFly()
 
 			// interactions
@@ -162,7 +169,14 @@ func (g *Game) Run() {
 			// g.light.HandleChange()
 
 			// tick physics simulation
-			g.physics.SetColliders(g.world.SurroundingBoxes(g.player.body.position))
+			worldColliders := g.world.SurroundingBoxes(
+				g.player.body.position,
+				g.player.body.position.Sub(mgl32.Vec3{0, 1, 0}))
+			for _, p := range g.pearls {
+				worldColliders = append(worldColliders,
+					g.world.SurroundingBoxes(p.body.position)...)
+			}
+			g.physics.SetColliders(worldColliders)
 			g.physics.Tick(g.clock.SimulationDelta())
 
 			lightPos := g.player.camera.pos.Sub(mgl32.Vec3{1, 0, 1}.Normalize().Mul(visibleRadius))
@@ -170,6 +184,7 @@ func (g *Game) Run() {
 			g.light.pos = lightPos
 			g.light.view = g.player.camera.pos.Sub(lightPos).Normalize()
 
+			// consume fix timestep
 			g.clock.ConsumeStep()
 		}
 
@@ -191,8 +206,13 @@ func (g *Game) Run() {
 		g.crosshair.Draw()
 		g.hotbar.Draw()
 
+		for _, p := range g.pearls {
+			p.Draw(g.player.camera)
+		}
+
 		// show depth map as seen from the light perspective at top right of screen (UNCOMMENT TO TOGGLE)
 		// g.textureDebug.Draw(g.depthMap.texture)
+		// g.textureDebug.Draw(g.atlas.texture.handle)
 
 		for _, c := range near {
 			// if a block is being looked at in this chunk
@@ -375,6 +395,16 @@ func (g *Game) HandleJump() {
 	}
 }
 
+func (g *Game) HandleThrowPearl() {
+	if g.window.Debounce(glfw.KeyG) {
+		direction := g.player.camera.view.Normalize()
+		pearl := newPearl(g.atlas, g.shaders.Program("pearl"), g.player.body.position.Add(direction.Mul(1)), direction)
+		pearl.Init()
+		g.physics.Register(pearl.body)
+		g.pearls = append(g.pearls, pearl)
+	}
+}
+
 func (g *Game) HandleMove() {
 	// get input for movement
 	var rightMove float32
@@ -395,6 +425,9 @@ func (g *Game) HandleMove() {
 	}
 	if g.window.IsPressed(glfw.KeySpace) {
 		fly = true
+	}
+	if g.window.IsPressed(glfw.KeyO) {
+		forwardMove--
 	}
 
 	// input movement direction

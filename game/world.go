@@ -149,37 +149,41 @@ func (w *World) Ground(x, z float32) *Block {
 }
 
 // Returns the nearby blocks from a postion (i.e the walls, floor and cieling).
-func (w *World) SurroundingBoxes(p mgl32.Vec3) []Box {
+func (w *World) SurroundingBoxes(p ...mgl32.Vec3) []Box {
+	// blocks occupied byt he body
+	bodyBlocks := map[mgl32.Vec3]*Block{}
+	for _, v := range p {
+		b := w.Block(v)
+		bodyBlocks[b.WorldPos()] = b
+	}
+
+	// relative surrounding vectors
 	relativePositions := []mgl32.Vec3{
 		{1, 0, 0},
 		{-1, 0, 0},
 		{0, 0, 1},
 		{0, 0, -1},
-
-		{1, -1, 0},
-		{-1, -1, 0},
-		{0, -1, 1},
-		{0, -1, -1},
-
-		{0, -2, 0},
+		{0, -1, 0},
 		{0, 1, 0},
 	}
 
-	currentBlock := w.Block(p)
-	curPos := currentBlock.WorldPos()
-	blocks := make([]*Block, len(relativePositions))
-	for i, v := range relativePositions {
-		blocks[i] = w.Block(curPos.Add(v))
-	}
+	// get all surroudings
+	surroundings := []Box{}
+	for pos := range bodyBlocks {
+		for _, rel := range relativePositions {
+			surPos := pos.Add(rel)
+			sur := w.Block(surPos)
 
-	boxes := []Box{}
-	for _, b := range blocks {
-		if b.active {
-			boxes = append(boxes, b.Box())
+			// check if block is active and not part of the occupying block
+			existingBody := bodyBlocks[surPos]
+			if existingBody == nil && sur.active {
+				surroundings = append(surroundings, sur.Box())
+			}
+
 		}
 	}
 
-	return boxes
+	return surroundings
 }
 
 // Places the chunks surrounding the position in a spawn queue.

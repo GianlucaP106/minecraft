@@ -100,5 +100,5 @@ func (r Ray) March(find func(p mgl32.Vec3) bool) (bool, Direction, mgl32.Vec3) {
 			}
 		}
 	}
-	return false, none, mgl32.Vec3{}
+	return false, noDirection, mgl32.Vec3{}
 }

@@ -1,10 +1,19 @@
 package game
 
-import "math"
+import (
+	"math"
+
+	"github.com/go-gl/mathgl/mgl32"
+)
 
 // 32 bit floor.
 func floor(v float32) float32 {
 	return float32(math.Floor(float64(v)))
+}
+
+// 32 bit ceil.
+func ceil(v float32) float32 {
+	return float32(math.Ceil(float64(v)))
 }
 
 // Returns the sign of the passed input.
@@ -37,4 +46,14 @@ func exerp(t, a, b, e float32) float32 {
 func normsigmoid(t float32) float32 {
 	tan := math.Tanh(4*float64(t)-2) / 2
 	return float32(tan) + 0.5
+}
+
+// 32 bit Inverse cosine.
+func acos(x float32) float32 {
+	return float32(math.Acos(float64(x)))
+}
+
+// Returns the angle between 2 vectors in 3D.
+func angleBetween(v1, v2 mgl32.Vec3) float32 {
+	return acos(v1.Dot(v2) / (v1.Len() * v2.Len()))
 }

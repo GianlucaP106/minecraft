@@ -41,11 +41,10 @@ void main() {
 
     // is the block being looked at
     bool isSelected = pos.x >= blockMin.x && pos.x <= blockMax.x &&
-        pos.y >= blockMin.y && pos.y <= blockMax.y &&
-        pos.z >= blockMin.z && pos.z <= blockMax.z && isLooking;
+            pos.y >= blockMin.y && pos.y <= blockMax.y &&
+            pos.z >= blockMin.z && pos.z <= blockMax.z && isLooking;
 
     selected = isSelected ? 1.0 : 0.0;
-
 
     // apply special world transformation to normal vector
     // due to normal transformation issue
@@ -56,4 +55,3 @@ void main() {
     fragPosLight = lightSpaceMatrix * pos;
     gl_Position = view * pos;
 }
-

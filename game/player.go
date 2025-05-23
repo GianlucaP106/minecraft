@@ -9,8 +9,13 @@ import (
 // Player for the game.
 // Holder of the camera.
 type Player struct {
-	camera    *Camera
-	body      *RigidBody
+	// view of world
+	camera *Camera
+
+	// ref to rigid body gets updated by physics engine
+	body *RigidBody
+
+	// held blocks
 	inventory *Inventory
 }
 
@@ -30,11 +35,13 @@ func newPlayer(initialPos mgl32.Vec3) *Player {
 	p := &Player{}
 	p.camera = newCamera(initialPos)
 	p.body = &RigidBody{
-		position: p.camera.pos,
-		mass:     playerMass,
-		flying:   false,
-		height:   playerHeight,
-		width:    playerWidth,
+		name:                     "player",
+		position:                 p.camera.pos,
+		mass:                     playerMass,
+		flying:                   false,
+		height:                   playerHeight,
+		width:                    playerWidth,
+		groundCollisionsDisabled: true,
 
 		// set call back to update camera position
 		cb: func() {

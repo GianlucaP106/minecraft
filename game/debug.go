@@ -1,6 +1,9 @@
 package game
 
-import "github.com/go-gl/gl/v4.1-core/gl"
+import (
+	"github.com/go-gl/gl/v4.1-core/gl"
+	"github.com/go-gl/mathgl/mgl32"
+)
 
 type TextureDebugger struct {
 	vao, vbo uint32
@@ -14,15 +17,19 @@ func newTextureDebugger(shader *Shader) *TextureDebugger {
 }
 
 func (d *TextureDebugger) Init() {
-	quadVertices := []float32{
-		// positions   // texCoords
-		1.0, 1.0, 1.0, 1.0, // top right
-		0.5, 1.0, 0.0, 1.0, // top let
-		0.5, 0.5, 0.0, 0.0, // bottom let
+	quad := newQuad(0, 1, 0, 1)
+	quadVertices := []float32{}
+	for _, v := range quad {
+		pos := v.pos
+		tex := v.tex
 
-		1.0, 1.0, 1.0, 1.0, // top right
-		0.5, 0.5, 0.0, 0.0, // bottom let
-		1.0, 0.5, 1.0, 0.0, // bottom right
+		translate := mgl32.Translate3D(0.5, 0.5, 0)
+		scale := mgl32.Scale3D(0.5, 0.5, 1)
+		m := translate.Mul4(scale)
+		pos = m.Mul4x1(pos.Vec4(1)).Vec3()
+		quadVertices = append(quadVertices,
+			pos.X(), pos.Y(), tex.X(), tex.Y(),
+		)
 	}
 
 	gl.GenVertexArrays(1, &d.vao)

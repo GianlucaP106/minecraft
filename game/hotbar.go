@@ -50,27 +50,6 @@ func (h *Hotbar) Init() {
 // Sends the hotbar vertices to GPU.
 func (h *Hotbar) Buffer() {
 	gl.BindBuffer(gl.ARRAY_BUFFER, h.vbo)
-
-	quad := []mgl32.Vec2{
-		{-1.0, -1.0},
-		{1.0, -1.0},
-		{-1.0, 1.0},
-		{1.0, -1.0},
-		{1.0, 1.0},
-		{-1.0, 1.0},
-	}
-
-	uv := func(umin, umax, vmin, vmax float32) []mgl32.Vec2 {
-		return []mgl32.Vec2{
-			{umin, vmax},
-			{umax, vmax},
-			{umin, vmin},
-			{umax, vmax},
-			{umax, vmin},
-			{umin, vmin},
-		}
-	}
-
 	h.vertCount = 0
 	buffer := []float32{}
 
@@ -88,38 +67,34 @@ func (h *Hotbar) Buffer() {
 		}
 
 		umin, umax, vmin, vmax := h.atlas.Coords(texFace[0], texFace[1])
-		uvs := uv(umin, umax, vmin, vmax)
+		quad := newQuad(umin, umax, vmin, vmax)
 
-		scale := mgl32.Scale3D(0.025, 0.025, 0.025)
-		translate := mgl32.Translate3D(float32(i)*3, -15, 0)
-		m := scale.Mul4(translate)
+		scale := mgl32.Scale3D(0.025, 0.025, 1)
+		translate := mgl32.Translate3D(float32(i)*0.075, -0.35, 0)
+		m := translate.Mul4(scale)
 		m = h.camera.projection.Mul4(m)
-		for j, v := range quad {
+		for _, v := range quad {
 			h.vertCount++
-			vert := m.Mul4x1(v.Vec4(0, 1))
-			texCoords := uvs[j]
+			vert := m.Mul4x1(v.pos.Vec2().Vec4(0, 1))
 			buffer = append(buffer,
 				vert.X(), vert.Y(), 0,
-				texCoords.X(), texCoords.Y(),
+				v.tex.X(), v.tex.Y(),
 			)
 		}
 
 		// draw a selected marker
 		if idx == h.selected {
 			umin, umax, vmin, vmax := h.atlas.Coords(43, 27)
-			// umin, umax, vmin, vmax := h.atlas.Coords(40, 5)
-			uvs := uv(umin, umax, vmin, vmax)
-
-			translate := mgl32.Translate3D(float32(i)*3, -13, 0)
-			m := scale.Mul4(translate)
+			quad := newQuad(umin, umax, vmin, vmax)
+			translate := mgl32.Translate3D(float32(i)*0.075, -0.3, 0)
+			m := translate.Mul4(scale)
 			m = h.camera.projection.Mul4(m)
-			for j, v := range quad {
+			for _, v := range quad {
 				h.vertCount++
-				vert := m.Mul4x1(v.Vec4(0, 1))
-				texCoords := uvs[j]
+				vert := m.Mul4x1(v.pos.Vec2().Vec4(0, 1))
 				buffer = append(buffer,
 					vert.X(), vert.Y(), 0,
-					texCoords.X(), texCoords.Y(),
+					v.tex.X(), v.tex.Y(),
 				)
 			}
 		}
