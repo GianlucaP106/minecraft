@@ -41,7 +41,7 @@ func newPlayer(initialPos mgl32.Vec3) *Player {
 		flying:                   false,
 		height:                   playerHeight,
 		width:                    playerWidth,
-		groundCollisionsDisabled: true,
+		staticCollisionsDisabled: true,
 
 		// set call back to update camera position
 		cb: func() {

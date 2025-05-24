@@ -18,14 +18,14 @@ type PhysicsEngine struct {
 }
 
 const (
-	jumpSpeed               = 9
-	gravity                 = 27.5
-	penetrationEpsilonSmall = 0.05
-	dynamicCollisionBoost   = 1.5
-	penetrationEpsilonBig   = 0.7
-	airMovementSuppression  = 0.5
-	flyingSpeedMultipier    = 4.0
-	positionHistoryLength   = 10
+	jumpSpeed                 = 9
+	gravity                   = 27.5
+	dynamicImpulseRestitution = 0.5
+	groundImpulseRestitution  = 0.4
+	groundFrictionCoef        = 0.3
+	wallImpulseRestitution    = 0.3
+	flyingSpeedMultipier      = 4.0
+	positionHistoryLength     = 10
 )
 
 func newPhysicsEngine(discover func(mgl32.Vec3) Box) *PhysicsEngine {
@@ -91,9 +91,6 @@ func (p *PhysicsEngine) update(body *RigidBody, delta float64) {
 	body.velocity = body.velocity.Add(acc.Mul(float32(delta)))
 
 	// apply some game specific condtions directly on velocity for smoothness
-	// if body.grounded {
-	// 	body.velocity[1] = 0
-	// }
 	if body.flying {
 		body.velocity = body.velocity.Mul(flyingSpeedMultipier)
 	}
@@ -150,7 +147,9 @@ func (p *PhysicsEngine) update(body *RigidBody, delta float64) {
 		} else if wall { // if this is a wall collider
 			b, pen, face := body.shape.IntersectionXZ(collider)
 			if b {
-				p.applyStaticImpulse(body, face.Normal(), float32(delta), 0.5)
+				if !body.staticCollisionsDisabled {
+					p.applyStaticImpulse(body, face.Normal(), float32(delta), wallImpulseRestitution)
+				}
 				body.setPosition(body.position.Sub(pen))
 			}
 		}
@@ -159,11 +158,11 @@ func (p *PhysicsEngine) update(body *RigidBody, delta float64) {
 	// resolve collisions along the Y direction, set grounded
 	if groundedDepth != nil {
 		body.grounded = true
-		if body.groundCollisionsDisabled {
+		if body.staticCollisionsDisabled {
 			body.velocity[1] = 0
 		} else {
-			p.applyStaticImpulse(body, mgl32.Vec3{0, 1, 0}, float32(delta), 0.3)
-			p.applyGroundFriction(body, 2)
+			p.applyStaticImpulse(body, mgl32.Vec3{0, 1, 0}, float32(delta), groundImpulseRestitution)
+			p.applyGroundFriction(body, groundFrictionCoef)
 		}
 		body.setPosition(body.position.Add(mgl32.Vec3{0, *groundedDepth, 0}))
 	} else {
@@ -194,7 +193,7 @@ func (p *PhysicsEngine) update(body *RigidBody, delta float64) {
 
 		b, pen, face := body.shape.IntersectionXZ(otherBody.shape)
 		if b {
-			p.applyDynamicImpulse(body, otherBody, face.Normal(), float32(delta), 0.5)
+			p.applyDynamicImpulse(body, otherBody, face.Normal(), float32(delta), dynamicImpulseRestitution)
 			body.setPosition(body.position.Sub(pen))
 		}
 	}
@@ -270,7 +269,7 @@ type RigidBody struct {
 
 	// toggles
 	flying                   bool
-	groundCollisionsDisabled bool
+	staticCollisionsDisabled bool // useful for player
 }
 
 // Converts movement vector into a velocity change for player-like movement.
