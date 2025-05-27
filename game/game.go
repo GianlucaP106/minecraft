@@ -61,7 +61,7 @@ type Game struct {
 	// manages terrain, chunks and blocks
 	world *World
 
-	pearls []*Pearl
+	pearls map[*Pearl]bool
 }
 
 const (
@@ -107,7 +107,17 @@ func (g *Game) Init() {
 	g.player = newPlayer(startPos)
 	g.physics = newPhysicsEngine(func(v mgl32.Vec3) Box {
 		return g.world.Block(v).Box()
-	})
+	}, g.world.SurroundingBoxes,
+		func(v mgl32.Vec3) *Box {
+			b := g.world.Block(v)
+			if !b.active {
+				return nil
+			}
+
+			box := b.Box()
+			return &box
+		},
+	)
 	g.physics.Register(g.player.body)
 	g.player.inventory.Set(worldEntity.Inventory())
 
@@ -133,6 +143,8 @@ func (g *Game) Init() {
 
 	g.depthMap = newDepthMap()
 	g.depthMap.Init()
+
+	g.pearls = make(map[*Pearl]bool)
 }
 
 // Runs the game loop.
@@ -169,14 +181,6 @@ func (g *Game) Run() {
 			// g.light.HandleChange()
 
 			// tick physics simulation
-			worldColliders := g.world.SurroundingBoxes(
-				g.player.body.position,
-				g.player.body.position.Sub(mgl32.Vec3{0, 1, 0}))
-			for _, p := range g.pearls {
-				worldColliders = append(worldColliders,
-					g.world.SurroundingBoxes(p.body.position)...)
-			}
-			g.physics.SetColliders(worldColliders)
 			g.physics.Tick(g.clock.SimulationDelta())
 
 			lightPos := g.player.camera.pos.Sub(mgl32.Vec3{1, 0, 1}.Normalize().Mul(visibleRadius))
@@ -206,13 +210,12 @@ func (g *Game) Run() {
 		g.crosshair.Draw()
 		g.hotbar.Draw()
 
-		for _, p := range g.pearls {
+		for p := range g.pearls {
 			p.Draw(g.player.camera)
 		}
 
 		// show depth map as seen from the light perspective at top right of screen (UNCOMMENT TO TOGGLE)
 		// g.textureDebug.Draw(g.depthMap.texture)
-		// g.textureDebug.Draw(g.atlas.texture.handle)
 
 		for _, c := range near {
 			// if a block is being looked at in this chunk
@@ -237,15 +240,20 @@ func (g *Game) Run() {
 // Will set the target block if currently looking at one.
 func (g *Game) LookBlock() {
 	ray := g.player.Ray()
-	b, face, hit := ray.March(func(p mgl32.Vec3) bool {
+	march := ray.March(func(p mgl32.Vec3) *Box {
 		block := g.world.Block(p)
-		return block != nil && block.active
+		if block != nil && block.active {
+			box := block.Box()
+			return &box
+		}
+		return nil
 	})
-	if b {
-		block := g.world.Block(hit)
+
+	if march.hit {
+		block := g.world.Block(march.blockPos)
 		g.target = &TargetBlock{
 			block: block,
-			face:  face,
+			face:  march.face,
 		}
 	} else {
 		g.target = nil
@@ -401,7 +409,7 @@ func (g *Game) HandleThrowPearl() {
 		pearl := newPearl(g.atlas, g.shaders.Program("pearl"), g.player.body.position.Add(direction.Mul(1)), direction)
 		pearl.Init()
 		g.physics.Register(pearl.body)
-		g.pearls = append(g.pearls, pearl)
+		g.pearls[pearl] = true
 	}
 }
 
@@ -425,9 +433,6 @@ func (g *Game) HandleMove() {
 	}
 	if g.window.IsPressed(glfw.KeySpace) {
 		fly = true
-	}
-	if g.window.IsPressed(glfw.KeyO) {
-		forwardMove--
 	}
 
 	// input movement direction

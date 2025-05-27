@@ -32,9 +32,9 @@ type World struct {
 
 const (
 	// dimensions
-	ground    = 100.0
-	bedrock   = 0.0
-	maxHeight = 200.0
+	worldGround    = 100.0
+	worldBedrock   = 0.0
+	worldMaxHeight = 200.0
 
 	// rendering
 	visibleRadius     = 120.0  // blocks

@@ -14,9 +14,18 @@ type Ray struct {
 	length    float32
 }
 
+// The result of a ray march.
+type March struct {
+	hit      bool
+	face     Direction
+	blockPos mgl32.Vec3
+	hitPos   mgl32.Vec3
+	box      Box
+}
+
 // March marches in the direction of the ray, detection the first the block in sight,
 // where the callback is used to determine if a block is present.
-func (r Ray) March(find func(p mgl32.Vec3) bool) (bool, Direction, mgl32.Vec3) {
+func (r Ray) March(find func(p mgl32.Vec3) *Box) March {
 	// helper to find the smallest `t` such that `s + (ds * t)` is an integer
 	// i.e finds the next block point
 	intbound := func(s, ds mgl32.Vec3) mgl32.Vec3 {
@@ -56,13 +65,23 @@ func (r Ray) March(find func(p mgl32.Vec3) bool) (bool, Direction, mgl32.Vec3) {
 	radius := r.length / r.direction.Len()
 
 	var face Direction
+	var hit float32
 	for {
-		if find(p) {
-			return true, face, p
+		b := find(p)
+		if b != nil {
+			hitPos := r.origin.Add(r.direction.Mul(hit))
+			return March{
+				hit:      true,
+				blockPos: p,
+				hitPos:   hitPos,
+				face:     face,
+				box:      *b,
+			}
 		}
 
 		if tmax.X() < tmax.Y() {
 			if tmax.X() < tmax.Z() {
+				hit = tmax.X()
 				if tmax.X() > radius {
 					break
 				}
@@ -72,6 +91,7 @@ func (r Ray) March(find func(p mgl32.Vec3) bool) (bool, Direction, mgl32.Vec3) {
 
 				face = newDirection(mgl32.Vec3{-step.X(), 0, 0})
 			} else {
+				hit = tmax.Z()
 				if tmax.Z() > radius {
 					break
 				}
@@ -82,6 +102,7 @@ func (r Ray) March(find func(p mgl32.Vec3) bool) (bool, Direction, mgl32.Vec3) {
 			}
 		} else {
 			if tmax.Y() < tmax.Z() {
+				hit = tmax.Y()
 				if tmax.Y() > radius {
 					break
 				}
@@ -90,6 +111,7 @@ func (r Ray) March(find func(p mgl32.Vec3) bool) (bool, Direction, mgl32.Vec3) {
 				tmax[1] += tdelta.Y()
 				face = newDirection(mgl32.Vec3{0, -step.Y(), 0})
 			} else {
+				hit = tmax.Z()
 				if tmax.Z() > radius {
 					break
 				}
@@ -100,5 +122,7 @@ func (r Ray) March(find func(p mgl32.Vec3) bool) (bool, Direction, mgl32.Vec3) {
 			}
 		}
 	}
-	return false, noDirection, mgl32.Vec3{}
+	return March{
+		hit: false,
+	}
 }

@@ -10,11 +10,13 @@ type PhysicsEngine struct {
 	// rigi body registrations to compute transformations
 	bodies map[*RigidBody]bool
 
-	// static colliders that need to be taken account (can be reset at each frame if needed)
+	// all static colliders that may come in contact with bodies
 	colliders []Box
 
-	// gets the box located at a given point in the world (required for collisions)
-	discover func(mgl32.Vec3) Box
+	// world functions to get a block and surroundings based on position
+	discover             func(mgl32.Vec3) Box      // the aabb at a point
+	discoverSurroundings func(...mgl32.Vec3) []Box // the surrounding aabb
+	discoverActive       func(mgl32.Vec3) *Box     // same as discover but returns null if not active
 }
 
 const (
@@ -22,16 +24,21 @@ const (
 	gravity                   = 27.5
 	dynamicImpulseRestitution = 0.5
 	groundImpulseRestitution  = 0.4
-	groundFrictionCoef        = 0.3
+	groundFrictionCoef        = 1
 	wallImpulseRestitution    = 0.3
 	flyingSpeedMultipier      = 4.0
-	positionHistoryLength     = 10
 )
 
-func newPhysicsEngine(discover func(mgl32.Vec3) Box) *PhysicsEngine {
+func newPhysicsEngine(
+	discover func(mgl32.Vec3) Box,
+	discoverSurroundings func(...mgl32.Vec3) []Box,
+	discoverActive func(mgl32.Vec3) *Box,
+) *PhysicsEngine {
 	return &PhysicsEngine{
-		bodies:   make(map[*RigidBody]bool),
-		discover: discover,
+		bodies:               make(map[*RigidBody]bool),
+		discover:             discover,
+		discoverSurroundings: discoverSurroundings,
+		discoverActive:       discoverActive,
 	}
 }
 
@@ -43,10 +50,6 @@ func (p *PhysicsEngine) Register(body *RigidBody) {
 // Unregisters a RigidBody.
 func (p *PhysicsEngine) Unregister(body *RigidBody) {
 	delete(p.bodies, body)
-}
-
-func (p *PhysicsEngine) SetColliders(colliders []Box) {
-	p.colliders = colliders
 }
 
 // Ticks the simulation.
@@ -62,6 +65,8 @@ func (p *PhysicsEngine) Tick(delta float64) {
 			rb.cb()
 		}
 	}
+
+	p.colliders = make([]Box, 0)
 }
 
 func (p *PhysicsEngine) setup(body *RigidBody) {
@@ -77,6 +82,9 @@ func (p *PhysicsEngine) setup(body *RigidBody) {
 		worldPositions = append(worldPositions, p.discover(pos))
 	}
 	body.worldBlocks = worldPositions
+
+	// add surrounding colliders
+	p.setColliders(body)
 }
 
 // Update the rigid bodies with derived physics.
@@ -104,6 +112,31 @@ func (p *PhysicsEngine) update(body *RigidBody, delta float64) {
 
 	// reset force
 	body.force = mgl32.Vec3{}
+
+	movement := body.position.Sub(oldPosition)
+	movementLength := movement.Len()
+	movementDir := movement.Normalize()
+
+	// high speed adjustment
+	if movementLength >= 0.7 {
+		ray := Ray{
+			origin:    oldPosition,
+			direction: movementDir,
+			length:    movementLength,
+		}
+
+		march := ray.March(func(point mgl32.Vec3) *Box {
+			return p.discoverActive(point)
+		})
+
+		if march.hit {
+			body.setPosition(march.hitPos.Add(movementDir.Mul(-0.05)))
+			p.colliders = append(p.colliders, march.box)
+		}
+	}
+
+	// set colliders around the new position
+	p.setColliders(body)
 
 	// keep track of if grounded and how much penetration
 	var groundedDepth *float32
@@ -147,7 +180,7 @@ func (p *PhysicsEngine) update(body *RigidBody, delta float64) {
 		} else if wall { // if this is a wall collider
 			b, pen, face := body.shape.IntersectionXZ(collider)
 			if b {
-				if !body.staticCollisionsDisabled {
+				if !body.staticImpulsesDisabled {
 					p.applyStaticImpulse(body, face.Normal(), float32(delta), wallImpulseRestitution)
 				}
 				body.setPosition(body.position.Sub(pen))
@@ -158,7 +191,7 @@ func (p *PhysicsEngine) update(body *RigidBody, delta float64) {
 	// resolve collisions along the Y direction, set grounded
 	if groundedDepth != nil {
 		body.grounded = true
-		if body.staticCollisionsDisabled {
+		if body.staticImpulsesDisabled {
 			body.velocity[1] = 0
 		} else {
 			p.applyStaticImpulse(body, mgl32.Vec3{0, 1, 0}, float32(delta), groundImpulseRestitution)
@@ -176,6 +209,7 @@ func (p *PhysicsEngine) update(body *RigidBody, delta float64) {
 	}
 
 	// resolve collisions with other registered bodies
+	// TODO: optimize
 	for otherBody := range p.bodies {
 		isSameY := false
 		for _, worldBlock := range otherBody.worldBlocks {
@@ -205,6 +239,14 @@ func (p *PhysicsEngine) update(body *RigidBody, delta float64) {
 	body.tripDistance += deltaPos
 	if deltaPos == 0 {
 		body.tripDistance = 0
+	}
+}
+
+// Uses discoverSurroundings to set the colliders around this body.
+func (p *PhysicsEngine) setColliders(body *RigidBody) {
+	for _, worldBlock := range body.worldBlocks {
+		colliders := p.discoverSurroundings(worldBlock.center)
+		p.colliders = append(p.colliders, colliders...)
 	}
 }
 
@@ -268,8 +310,8 @@ type RigidBody struct {
 	grounded bool
 
 	// toggles
-	flying                   bool
-	staticCollisionsDisabled bool // useful for player
+	flying                 bool
+	staticImpulsesDisabled bool // useful for player movement
 }
 
 // Converts movement vector into a velocity change for player-like movement.

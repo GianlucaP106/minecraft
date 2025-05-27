@@ -35,13 +35,13 @@ func newPlayer(initialPos mgl32.Vec3) *Player {
 	p := &Player{}
 	p.camera = newCamera(initialPos)
 	p.body = &RigidBody{
-		name:                     "player",
-		position:                 p.camera.pos,
-		mass:                     playerMass,
-		flying:                   false,
-		height:                   playerHeight,
-		width:                    playerWidth,
-		staticCollisionsDisabled: true,
+		name:                   "player",
+		position:               p.camera.pos,
+		mass:                   playerMass,
+		flying:                 false,
+		height:                 playerHeight,
+		width:                  playerWidth,
+		staticImpulsesDisabled: true,
 
 		// set call back to update camera position
 		cb: func() {

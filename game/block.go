@@ -34,7 +34,7 @@ type BlockVertex struct {
 	face Direction
 }
 
-const blockSize = 1
+const blockSize = 1.0
 
 func newBlock(chunk *Chunk, i, j, k int, blockType string) *Block {
 	b := &Block{}

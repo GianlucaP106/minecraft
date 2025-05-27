@@ -1,6 +1,8 @@
 package game
 
 import (
+	"time"
+
 	"github.com/go-gl/gl/v4.1-core/gl"
 	"github.com/go-gl/mathgl/mgl32"
 )
@@ -11,24 +13,28 @@ type Pearl struct {
 	vertCount int
 	vao, vbo  uint32
 	shader    *Shader
+	spawnedAt time.Time
 }
 
-const mass = 3
+const (
+	pearlMass   = 2
+	pearlWidth  = 0.25
+	pearlHeight = 0.25
+)
 
 func newPearl(atlas *TextureAtlas, shader *Shader, initialPos, direction mgl32.Vec3) *Pearl {
 	return &Pearl{
-		atlas:  atlas,
-		shader: shader,
+		atlas:     atlas,
+		shader:    shader,
+		spawnedAt: time.Now(),
 		body: &RigidBody{
 			name:     "pearl",
-			mass:     mass,
-			width:    0.5,
-			height:   0.5,
+			mass:     pearlMass,
+			width:    pearlWidth,
+			height:   pearlHeight,
 			flying:   false,
 			position: initialPos,
-			force:    direction.Mul(1000 * mass),
-
-			cb: func() {},
+			force:    direction.Mul(5000 * pearlMass),
 		},
 	}
 }
@@ -65,6 +71,13 @@ func (b *Pearl) Init() {
 	gl.Uniform1i(textureUniform, 0)
 }
 
+func (p *Pearl) Destroy() {
+	gl.DeleteBuffers(1, &p.vbo)
+	p.vbo = 0
+	gl.DeleteVertexArrays(1, &p.vao)
+	p.vao = 0
+}
+
 func (b *Pearl) Draw(camera *Camera) {
 	gl.UseProgram(b.shader.handle)
 	gl.BindVertexArray(b.vao)
@@ -83,7 +96,7 @@ func (b *Pearl) Draw(camera *Camera) {
 	thetaY := angleBetween(dir, dirXZ)
 	rotateY := mgl32.HomogRotate3D(thetaY, dirXZ.Cross(dir).Normalize())
 
-	scale := mgl32.Scale3D(0.5, 0.5, 0.5)
+	scale := mgl32.Scale3D(pearlWidth, pearlHeight, pearlWidth)
 
 	model := translate.Mul4(rotateY.Mul4(rotateXZ.Mul4(scale)))
 	modelUniform := gl.GetUniformLocation(b.shader.handle, gl.Str("model\x00"))
